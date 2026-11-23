@@ -2,6 +2,26 @@ using namespace vex;
 
 extern brain Brain;
 
+extern motor LeftFront;
+extern motor LeftMiddle;
+extern motor LeftBack;
+extern motor RightFront;
+extern motor RightMiddle;
+extern motor RightBack;
+extern motor_group LeftDrive;
+extern motor_group RightDrive;
+extern motor_group Drive;
+extern motor claw;
+extern inertial inertialSensor;
+// arm port is 15 left 16 right
+extern motor ArmLeft;
+extern motor ArmRight;
+extern motor_group Arm;
+
+extern motor toggle;
+
+extern controller Controller;
+
 /**
  * Used to initialize code/tasks/devices added using tools in VEXcode Pro.
  *
