@@ -2,8 +2,10 @@
 #include "PID.h"
 #include "auton-selector.h"
 #include "autonomos.h"
+#include "Toggle.h"
 
 using namespace vex;
+extern vex::competition Competition;
 
 void pickUpPin(void) {
   claw.spinFor(forward, 800 , msec, 300, rpm);
@@ -21,7 +23,7 @@ void scoreAllianceGoal(void) {
   wait(650, msec);
   claw.spinFor(reverse, 600 , msec, 300, rpm);
 }
-void toggleQuadrant1(void) {
+void passiveToggleQuadrant1(void) {
   drivePID(20, 20, 0.8);
   turnPID(82, 20, 0.5);
   drivePID(12, 50, 0.5);
@@ -30,7 +32,7 @@ void toggleQuadrant1(void) {
   drivePID(-20, 20, 0.5);
   turnPID(-42.5, 20, 0.3);
 }
-void toggleQuadrant2(void) {
+void passiveToggleQuadrant2(void) {
   drivePID(20, 20, 0.8);
   turnPID(-82, 20, 0.5);
   drivePID(12, 50, 0.5);
@@ -56,7 +58,7 @@ void autonomous(void) {
       scoreAllianceGoal();
       turnPID(60, 20, 2);
       claw.spinFor(forward, 150 , msec, 300, rpm);
-      toggleQuadrant2();
+      passiveToggleQuadrant2();
       Arm.stop(brake);
     break;
     case 1:
@@ -70,11 +72,15 @@ void autonomous(void) {
       break;
     case 5:
       break;
+    case 6:
+      Drive.stop(brake);
+      activeToggle(Competition, redAlliance);
+      break;
     case 0:
       scoreAllianceGoal();
       turnPID(-60, 20, 2);
       claw.spinFor(forward, 150 , msec, 300, rpm);
-      toggleQuadrant1();
+      passiveToggleQuadrant1();
       Arm.stop(brake);
       // drivePID(-25, 25, 0.5);
       break;

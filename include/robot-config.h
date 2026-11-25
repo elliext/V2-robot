@@ -18,7 +18,10 @@ extern motor ArmLeft;
 extern motor ArmRight;
 extern motor_group Arm;
 
-extern motor toggle;
+extern motor toggleLeft;
+extern motor toggleRight;
+extern optical toggleOpticalLeft;
+extern optical toggleOpticalRight;
 
 extern controller Controller;
 

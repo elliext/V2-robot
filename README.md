@@ -46,9 +46,9 @@ initialization, autonomous selection and routines, PID movement, and separate
 driver-control tasks for the drivetrain, arm, claw, and toggle.
 
 **Hardware adaptation is in progress.** The code now configures four drivetrain
-motors (two per side), the arm and claw, and one toggle motor. The left drivetrain
-and claw ports have been corrected to match the confirmed wiring. A separate
-left-side toggle motor has not yet been added. Verify all remaining device ports, motor cartridges,
+motors (two per side), the arm and claw, and two toggle motors. The left drivetrain
+and claw ports have been corrected to match the confirmed wiring. The left toggle
+motor is on port 13 and the right toggle motor is on port 3. Verify all remaining device ports, motor cartridges,
 gearing, controls, and autonomous movements before downloading or running this
 code on V2.
 
@@ -56,14 +56,42 @@ V2's own README and VS Code project settings are retained.
 
 ## Toggle Driver Control
 
-- **Hold Button X:** run the currently configured toggle motor in reverse at
+- **Hold Button X:** run both toggle motors in reverse at
   100% power.
 - **Release Button X:** stop powering the motor with **coast**, without active
   braking or position holding. The mechanism can continue moving from momentum.
 
 The passive-toggle optical-sensor example remains commented out and inactive.
-These controls apply to the single configured toggle motor; a separate
-left-side toggle motor has not yet been added.
+Driver Button X control remains manual and does not use the optical sensors.
+
+## Active Toggle Autonomous Test
+
+- **Left optical sensor:** Brain port **5**, controls the left toggle motor on
+  port **13**.
+- **Right optical sensor:** Brain port **6**, controls the right toggle motor on
+  port **3**.
+- During pre-autonomous selection, use **Left/Right** to choose routine **6**,
+  **Up** to select **Red**, or **Down** to select **Blue**, then **A** to confirm.
+  The controller displays both the routine and color. The default color is Red.
+  Color selection affects the active toggle only; it does not mirror existing
+  autonomous routes.
+- Position the robot at the toggles before starting autonomous. Routine 6 does
+  not drive into position or run the other autonomous sequences.
+- Each toggle runs independently in reverse at **100%** only while its sensor
+  detects a nearby object of the wrong color. If no object is nearby, that motor
+  coasts until an object appears or the routine ends.
+- When a side detects the selected color, its motor coasts and remains stopped
+  for the rest of that invocation. The routine succeeds when both sides finish.
+- The temporary timeout is **3 seconds**. Timeout, a missing/disconnected sensor,
+  or leaving autonomous stops motor power; failures print a message and rumble
+  the controller. Sensor lights are turned off on normal cleanup.
+
+The implementation uses sensor lights at 50%, red hue below 30 or above 330,
+and blue hue from 180 through 260. Verify detection under competition lighting
+and tune the hue thresholds and `TIMEOUT_MS` in [src/Toggle.cpp](src/Toggle.cpp)
+on the robot. Coast allows momentum to move the mechanism after motor power is
+removed; test the 100% setting carefully. Existing routines 0 through 5 do not
+automatically invoke the active toggle.
 
 ## Getting Started
 
@@ -127,8 +155,8 @@ Generated build outputs are excluded from Git.
 
 - Keep motor ports, gear cartridges, and reversal settings consistent with the
   physical V2 robot.
-- Configure two drive motors per side and a separate motor for the left-side
-  toggle. Confirm the back toggle's actuation before adding its device definition.
+- Verify the two drive motors per side and the left/right toggle motor and sensor
+  pairings against the physical robot. Confirm the back toggle's actuation.
 - Establish safe travel limits and stopping behavior for the motor-controlled
   side toggle before testing it.
 - Document driver controls and autonomous routines here as they are implemented.

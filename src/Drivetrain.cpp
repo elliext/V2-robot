@@ -35,8 +35,8 @@ void updateDrivetrain(){
   const double angleRadians = requestedAngle * M_PI / 180;
   const double straightVelocity = requestedSpeed * cos(angleRadians);
   const double turnVelocity = requestedSpeed * sin(angleRadians) * 0.7;
-  double leftVelocity = straightVelocity - turnVelocity;
-  double rightVelocity = straightVelocity + turnVelocity;
+  double leftVelocity = straightVelocity + turnVelocity;
+  double rightVelocity = straightVelocity - turnVelocity;
   const double peakVelocity = fmax(fabs(leftVelocity), fabs(rightVelocity));
   if (peakVelocity > 100){
     leftVelocity *= 100 / peakVelocity;

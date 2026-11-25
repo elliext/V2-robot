@@ -4,3 +4,4 @@
 void selectAuton();
 
 extern int autonNumber;
+extern bool redAlliance;
