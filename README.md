@@ -102,6 +102,10 @@ or run anything on the Brain, test motor movement, validate a real AI model, or
 prove physical recognition. The earlier Cup and RedYellowPin results above are
 hardware observations; real-world recognition still requires a hardware test.
 
+Keep object-detection test photographs outside this repository. They are local
+test data, not required by `make test`; `/rypc.png` is ignored to prevent
+accidental inclusion in future commits.
+
 The source files, headers, and build files were copied from the team's
 `for_now_use_this` project. They include device definitions, pre-autonomous
 initialization, autonomous selection and routines, PID movement, and separate
