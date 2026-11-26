@@ -206,6 +206,22 @@ Generated build outputs are excluded from Git.
 
 ## Development
 
+### Turn PID Timeout
+
+`turnPID(target, maxIntegral, tolerance, timeoutMs)` accepts an optional fourth
+parameter in milliseconds. Omit it or use `0` for no timeout:
+
+```cpp
+turnPID(90, 20, 0.5);        // No timeout.
+turnPID(90, 20, 0.5, 3000);  // Brake after at most 3 seconds of turning.
+```
+
+The integral is capped at both `-maxIntegral` and `+maxIntegral`. A timed-out
+turn brakes the drivetrain, prints the remaining error, and rumbles the
+controller. The existing 50 ms settling delay follows braking. Negative or
+non-finite timeouts are rejected with braking and an error notification.
+With no timeout, a turn that never reaches its tolerance can keep running.
+
 - Keep motor ports, gear cartridges, and reversal settings consistent with the
   physical V2 robot.
 - Verify the two drive motors per side and the left/right toggle motor and sensor

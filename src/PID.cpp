@@ -52,7 +52,13 @@ void drivePID(double target, double maxIntegral, double tolerance){
   //Short delay to come to a full stop
   wait(50, msec);
 }
-void turnPID(double target, double maxIntegral, double tolerance){
+void turnPID(double target, double maxIntegral, double tolerance, double timeoutMs){
+  if(!isfinite(timeoutMs) || timeoutMs<0){
+    Drive.stop(brake);
+    printf("Turn PID: timeout must be finite and nonnegative.\n");
+    Controller.rumble("---");
+    return;
+  }
   
   //Initialize remaining variables
   double error = target;
@@ -66,9 +72,13 @@ void turnPID(double target, double maxIntegral, double tolerance){
   double kI = 0.005;
   double kD = 0.01;
   
+  const bool timeoutEnabled = timeoutMs>0;
+  timer turnTimer;
   inertialSensor.setRotation(0,degrees);
+  turnTimer.reset();
   //Main loop, when the robot is more than the desired distance from the target
-  while(fabs(error)>tolerance){
+  while(fabs(error)>tolerance &&
+        (!timeoutEnabled || turnTimer.time(msec)<timeoutMs)){
     
     //Calculate how far the robot is from the target
     double measuredValue = (inertialSensor.rotation());
@@ -78,6 +88,9 @@ void turnPID(double target, double maxIntegral, double tolerance){
     //Prevent integral windup by capping the maximum integral value
     if (integral>maxIntegral){
       integral=maxIntegral;
+    }
+    if(integral<-maxIntegral){
+      integral=-maxIntegral;
     }
     //Find derivative value
     derivative=(error-lastError)/0.015;
@@ -91,10 +104,16 @@ void turnPID(double target, double maxIntegral, double tolerance){
     
 
     //Short wait to save resources
-    wait(15, msec);
+    wait(timeoutEnabled ? fmax(0, fmin(15, timeoutMs-turnTimer.time(msec))) :
+                          15, msec);
   }
   //Brake motors after driving is finished
   Drive.stop(brake);
+  if(fabs(error)>tolerance && timeoutEnabled && turnTimer.time(msec)>=timeoutMs){
+    printf("Turn PID: timed out after %.2f ms; remaining error %.2f degrees.\n",
+           timeoutMs, error);
+    Controller.rumble("---");
+  }
   //Short delay to come to a full stop
   wait(50, msec);
 }

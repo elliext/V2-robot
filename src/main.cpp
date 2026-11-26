@@ -46,6 +46,7 @@ void pre_auton(void) {
   Controller.rumble("..-");
   selectAuton();
   claw.spin(forward,50,percent);
+  enableToggleLights();
   // All activities that occur before the competition starts
   // Example: clearing encoders, setting servo positions, ...
 }
