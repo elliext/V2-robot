@@ -31,6 +31,8 @@ controller Controller = controller(primary);
 optical toggleOptical1 = optical(PORT5);
 optical toggleOptical2 = optical(PORT15);
 
+aivision AIVision = aivision(PORT6);
+
 
 
 /**

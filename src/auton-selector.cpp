@@ -1,5 +1,6 @@
 # include "auton-selector.h"
 # include "Toggle.h"
+# include "AIVision.h"
 int autonNumber;
 bool redAlliance = true;
 
@@ -18,6 +19,7 @@ void selectAuton(){
     showSelection();
     while(Controller.ButtonA.pressing()==false){
         updateOpticalDisplay();
+        updateAIVisionDisplay();
         if(buttonHeld ==  false){
             if (Controller.ButtonRight.pressing()&& autonNumber < MAX_AUTON_NUMBER){
                 autonNumber++;

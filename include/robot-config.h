@@ -24,6 +24,8 @@ extern motor toggleRight;
 extern optical toggleOptical1;
 extern optical toggleOptical2;
 
+extern aivision AIVision;
+
 extern inertial inertialSensor;
 //Yellow = 31 - 70
 //Red = 0 - 31, 330 - 360
