@@ -59,8 +59,8 @@ V2's own README and VS Code project settings are retained.
 - **Hold Button X:** run both toggle motors in reverse at
   100% power.
 - **Hold Button A:** use the optical sensors to turn each toggle to the selected
-  alliance color. Each side runs at 100% only while its own sensor sees a nearby
-  object of the wrong color, and stays stopped after reaching the target until
+  alliance color. Each side runs at 100% until its own sensor sees a nearby
+  object of the target color, and stays stopped after reaching the target until
   A is released. This is nonblocking and remains active only while A is held;
   unlike autonomous, there is no automatic 3-second timeout.
 - **Release both A and X:** stop powering both motors with **coast**, without
@@ -79,7 +79,7 @@ autonomous selection during pre-autonomous setup.
 
 ## Optical Sensor Controller Display
 
-Controller lines 1 and 2 show live readings for the left (port 6) and right
+Controller lines 1 and 2 show live readings for the left (port 15) and right
 (port 5) optical sensors:
 
 ```text
@@ -99,7 +99,7 @@ sensor lighting.
 
 ## Active Toggle Autonomous Test
 
-- **Left optical sensor (`toggleOptical2`):** Brain port **6**, controls the left toggle motor on
+- **Left optical sensor (`toggleOptical2`):** Brain port **15**, controls the left toggle motor on
   port **13**.
 - **Right optical sensor (`toggleOptical1`):** Brain port **5**, controls the right toggle motor on
   port **3**.
@@ -110,18 +110,20 @@ sensor lighting.
   autonomous routes.
 - Position the robot at the toggles before starting autonomous. Routine 6 does
   not drive into position or run the other autonomous sequences.
-- Each toggle runs independently in reverse at **100%** only while its sensor
-  detects a nearby object of the wrong color. If no object is nearby, that motor
-  coasts until an object appears or the routine ends.
+- Each toggle runs independently in reverse at **100%** until its sensor
+  detects a nearby object of the selected color. It keeps turning when no object
+  is detected; the autonomous timeout or releasing the driver button stops it.
 - When a side detects the selected color, its motor coasts and remains stopped
   for the rest of that invocation. The routine succeeds when both sides finish.
 - The temporary timeout is **3 seconds**. Timeout, a missing/disconnected sensor,
   or leaving autonomous stops motor power; failures print a message and rumble
-  the controller. Sensor lights are turned off on normal cleanup.
+  the controller. Sensor lights remain on after a toggle session so the
+  controller readings use the same lighting as the color checks.
 
-The implementation uses sensor lights at 50%, red hue below 20 or at least 330,
-and blue hue from 190 through 260, keeping the documented yellow range
-(20 through 45) separate from red. Verify detection under competition lighting
+The implementation uses sensor lights at 50%, an object-detection threshold of
+40, red hue at most 12 or at least 340, blue hue from 180 through 260, and yellow
+hue from 18 through 60. The display labels these colors R, B, Y, or ?.
+Verify detection under competition lighting
 and tune the hue thresholds and `TIMEOUT_MS` in [src/Toggle.cpp](src/Toggle.cpp)
 on the robot. Coast allows momentum to move the mechanism after motor power is
 removed; test the 100% setting carefully. Existing routines 0 through 5 do not

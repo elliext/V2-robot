@@ -1,10 +1,32 @@
 #include "vex.h"
 #include "Toggle.h"
 #include "auton-selector.h"
+#include <initializer_list>
 
 using namespace vex;
-
 namespace {
+// ---- Optical tuning. Measured on robot: yellow 21-42, blue OK in 180-260.
+// Verify red with the controller readout and move kRedHi/kRedLo if needed. ----
+constexpr double kLightPowerPct      = 50;   // 100% washes out glossy plastic
+constexpr int    kProximityThreshold = 40;   // 0-255; lower = triggers farther away
+constexpr double kRedLo    = 340, kRedHi    = 12;   // wraps around 0
+constexpr double kYellowLo = 18,  kYellowHi = 60;
+constexpr double kBlueLo   = 180, kBlueHi   = 260;
+
+
+bool isRed(double h)    { return h >= kRedLo || h <= kRedHi; }
+bool isYellow(double h) { return h >= kYellowLo && h <= kYellowHi; }
+bool isBlue(double h)   { return h >= kBlueLo && h <= kBlueHi; }
+
+
+const char* colorName(double h){
+  if(isRed(h))    return "R";
+  if(isBlue(h))   return "B";
+  if(isYellow(h)) return "Y";
+  return "?";
+}
+
+
 void showOpticalSensor(optical& sensor, int line, const char* side){
   Controller.Screen.clearLine(line);
   Controller.Screen.setCursor(line,1);
@@ -12,41 +34,52 @@ void showOpticalSensor(optical& sensor, int line, const char* side){
     Controller.Screen.print("%s: sensor missing", side);
     return;
   }
-  Controller.Screen.print("%s H:%.1f Near:%s", side, sensor.hue(),
+  const double hue = sensor.hue();
+  Controller.Screen.print("%s H:%3.0f %s Near:%s", side, hue, colorName(hue),
                           sensor.isNearObject() ? "Y" : "N");
 }
 
+
 bool updateActiveSide(motor& toggleMotor, optical& sensor, bool redAlliance,
                       bool completed){
-  if(completed || !sensor.isNearObject()){
-    toggleMotor.stop(coast);
-    return completed;
-  }
-  const double hue = sensor.hue();
-  const bool targetColor = redAlliance ? (hue < 40 || hue >= 350) :
-                                        (hue >= 100 && hue <= 260);
-  if(targetColor){
+  if(completed){
     toggleMotor.stop(coast);
     return true;
   }
+  const double hue = sensor.hue();
+  const bool targetColor = redAlliance ? isRed(hue) : isBlue(hue);
+  if(sensor.isNearObject() && targetColor){
+    toggleMotor.stop(coast);
+    return true;
+  }
+  // Keep turning until we SEE our color. Do not pause on proximity flicker;
+  // the auton timeout / driver button release is the safety net.
   toggleMotor.spin(reverse,100,percent);
   return false;
 }
 
+
 void stopActiveToggle(){
   toggleLeft.stop(coast);
   toggleRight.stop(coast);
-  toggleOptical1.setLight(ledState::off);
-  toggleOptical2.setLight(ledState::off);
+  // LEDs intentionally stay on so the controller readout matches the loop.
 }
+}  // namespace
+
 
 void enableToggleLights(){
-  toggleOptical1.setLightPower(100,percent);
-  toggleOptical2.setLightPower(100,percent);
-  toggleOptical1.setLight(ledState::on);
-  toggleOptical2.setLight(ledState::on);
+  static bool lightsOn = false;
+  for(optical* s : {&toggleOptical1, &toggleOptical2}){
+    s->objectDetectThreshold(kProximityThreshold);
+    s->setLightPower(kLightPowerPct, percent);
+    s->setLight(ledState::on);
+  }
+  if(!lightsOn){
+    wait(150, msec);   // let one integration window finish with the LED on
+    lightsOn = true;
+  }
 }
-}
+
 
 void updateOpticalDisplay(){
   static timer displayTimer;
@@ -68,7 +101,7 @@ bool activeToggle(vex::competition& competitionState, bool redAlliance){
     return false;
   }
   if(!toggleOptical1.installed() || !toggleOptical2.installed()){
-    printf("Active toggle: optical sensor missing on port 5 or 6.\n");
+    printf("Active toggle: optical sensor missing on port 5 or 15.\n");
     Controller.rumble("---");
     return false;
   }
@@ -169,7 +202,7 @@ void motorizedToggleing(bool resetHold){
     if(!toggleOptical1.installed() || !toggleOptical2.installed()){
       stopActiveToggle();
       sensorFault = true;
-      printf("Driver active toggle: optical sensor missing on port 5 or 6; release A to retry.\n");
+      printf("Driver active toggle: optical sensor missing on port 5 or 15; release A to retry.\n");
       Controller.rumble("---");
       return;
     }
