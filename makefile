@@ -33,13 +33,21 @@ HOST_CXX ?= c++
 TEST_BINARY = build/tests/ai-vision-tests
 TEST_SOURCES = src/AIVision.cpp tests/AIVisionTest.cpp
 TEST_HEADERS = include/AIVision.h tests/fakes/vex.h
+AUTON_TEST_BINARY = build/tests/auton-tests
+AUTON_TEST_SOURCES = src/auton-selector.cpp src/autonomos.cpp tests/AutonTest.cpp
+AUTON_TEST_HEADERS = include/auton-selector.h include/autonomos.h include/PID.h include/Toggle.h include/robot-config.h tests/fakes/vex.h
 
 .PHONY: test
-test: $(TEST_BINARY)
+test: $(TEST_BINARY) $(AUTON_TEST_BINARY)
 	@set -e; for test_case in $$("$(TEST_BINARY)" --list); do \
 		"$(TEST_BINARY)" "$$test_case"; \
 	done
+	@"$(AUTON_TEST_BINARY)"
 
 $(TEST_BINARY): $(TEST_SOURCES) $(TEST_HEADERS) makefile
 	@mkdir -p "$(@D)"
 	$(HOST_CXX) -std=c++11 -Wall -Wextra -Werror -Itests/fakes -Iinclude $(TEST_SOURCES) -o "$@"
+
+$(AUTON_TEST_BINARY): $(AUTON_TEST_SOURCES) $(AUTON_TEST_HEADERS) makefile
+	@mkdir -p "$(@D)"
+	$(HOST_CXX) -std=c++11 -Wall -Wextra -Werror -Itests/fakes -Iinclude $(AUTON_TEST_SOURCES) -o "$@"

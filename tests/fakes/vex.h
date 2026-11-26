@@ -15,6 +15,75 @@ extern int nowMs;
 
 namespace vex {
 enum timeUnits { msec };
+enum directionType { forward, reverse };
+enum velocityUnits { rpm, percent };
+enum brakeType { hold, brake };
+
+void wait(int duration, timeUnits);
+
+class motor {
+public:
+  struct command {
+    std::string kind;
+    double value;
+    double speed;
+  };
+  std::vector<command> commands;
+  void spinFor(directionType direction, double duration, timeUnits,
+               double speed, velocityUnits) {
+    commands.push_back({"spinFor", direction == forward ? duration : -duration, speed});
+  }
+  void spin(directionType direction, double speed, velocityUnits) {
+    commands.push_back({"spin", direction == forward ? speed : -speed, 0});
+  }
+  void stop(brakeType mode) {
+    commands.push_back({"stop", static_cast<double>(mode), 0});
+  }
+};
+
+class motor_group : public motor {};
+class optical {};
+class inertial {};
+class competition {};
+
+class controller {
+public:
+  struct button {
+    bool pressed = false;
+    bool pressing() const { return pressed; }
+  };
+  button ButtonA, ButtonLeft, ButtonRight, ButtonUp, ButtonDown, ButtonL1, ButtonR1;
+  struct screen {
+    std::string text;
+    void clearLine(int line) {
+      if (line != 3) {
+        throw std::runtime_error("Selector must use controller line 3");
+      }
+      text.clear();
+    }
+    void setCursor(int row, int column) {
+      if (row != 3 || column != 1) {
+        throw std::runtime_error("Unexpected selector cursor");
+      }
+    }
+    void print(const char* format, ...) {
+      char buffer[256];
+      va_list arguments;
+      va_start(arguments, format);
+      const int length = std::vsnprintf(buffer, sizeof(buffer), format, arguments);
+      va_end(arguments);
+      if (length < 0 || length >= static_cast<int>(sizeof(buffer))) {
+        throw std::runtime_error("Invalid controller output");
+      }
+      text = buffer;
+      if (text.size() > 20) {
+        throw std::runtime_error("Selector exceeds controller line width");
+      }
+    }
+  } Screen;
+  int rumbleCalls = 0;
+  void rumble(const char*) { ++rumbleCalls; }
+};
 
 class timer {
   int startMs = fake::nowMs;
@@ -113,3 +182,4 @@ public:
 
 extern vex::brain Brain;
 extern vex::aivision AIVision;
+extern vex::controller Controller;

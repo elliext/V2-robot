@@ -3,12 +3,15 @@
 # include "AIVision.h"
 int autonNumber;
 bool redAlliance = true;
+bool isRight = false;
 
 namespace {
 void showSelection(){
     Controller.Screen.clearLine(3);
     Controller.Screen.setCursor(3,1);
-    Controller.Screen.print("Auton %d %s", autonNumber, redAlliance ? "Red" : "Blue");
+    Controller.Screen.print("Auton %d %s %s", autonNumber,
+                            redAlliance ? "Red" : "Blue",
+                            isRight ? "Right" : "Left");
 }
 }
 
@@ -45,11 +48,21 @@ void selectAuton(){
             redAlliance = false;
             showSelection();
         }
-        wait(20,msec);
+        if(Controller.ButtonL1.pressing() && isRight){
+            isRight = false;
+            showSelection();
+        }
+        else if(Controller.ButtonR1.pressing() && !isRight){
+            isRight = true;
+            showSelection();
+        }
+        vex::wait(20,vex::msec);
     }
     Controller.Screen.clearLine(3);
     Controller.Screen.setCursor(3,1);
-    Controller.Screen.print("Set %d %s", autonNumber, redAlliance ? "Red" : "Blue");
+    Controller.Screen.print("Set %d %s %s", autonNumber,
+                            redAlliance ? "Red" : "Blue",
+                            isRight ? "Right" : "Left");
     for(int i=0; i<autonNumber; i++){
         Controller.rumble(".");
     }

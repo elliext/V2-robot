@@ -40,6 +40,46 @@ controls.
 
 ## Current Status
 
+### Autonomous Alliance and Wing Selection
+
+Before autonomous, select the starting configuration on the controller:
+
+- **Left/Right arrows:** select the autonomous routine (0 through 6).
+- **Up/Down arrows:** select Red/Blue alliance.
+- **L1/R1:** select Left/Right wing, viewed from our alliance station looking
+  into the field.
+- **A:** confirm. Controller line 3 shows the routine, alliance, and wing,
+  for example `Set 0 Blue Right`.
+
+The initial configuration is routine 1, Red, Left. The selected `redAlliance`
+and `isRight` booleans in [include/auton-selector.h](include/auton-selector.h)
+are available to autonomous code. This is manual pre-match configuration,
+not automatic sensor-based detection.
+
+Routine numbers **0 and 2 now run the same shared score-and-toggle routine** in
+[src/autonomos.cpp](src/autonomos.cpp). The wing, not the routine number or
+alliance color, determines turn directions:
+
+| Wing | Turn after scoring | Passive-toggle turn | Final turn |
+|---|---|---|---|
+| Left (`isRight == false`) | +60 degrees | -82 degrees | -42.5 degrees |
+| Right (`isRight == true`) | -60 degrees | +82 degrees | +42.5 degrees |
+
+All driving distances, speeds, tolerances, and mechanism actions are shared.
+The final turn is intentionally mirrored, unlike the former routines, which
+both ended with -42.5 degrees. Right is provisionally assigned the former
+routine 0 path; change `turnDirection` in `scoreAndToggleWing()` if field
+testing shows the wing mapping is reversed. Verify both paths on the physical
+field before competition. Other routine numbers retain their existing behavior.
+Alliance color still selects the target color for active toggles.
+
+`make test` also runs [tests/AutonTest.cpp](tests/AutonTest.cpp) against the
+actual selector and autonomous code with fake controller inputs and motors.
+It checks all four alliance/wing configurations, button debouncing, confirmation
+text, both routine aliases, exact mirrored turns and unchanged drive/PID/mechanism
+commands, and alliance forwarding to the active toggle. These host tests do not
+verify physical field geometry or download anything to the robot.
+
 ### AI Vision Sensor: Detection Display
 
 The AI Vision Sensor is configured on **Brain Smart Port 6**. Connect it to the
@@ -159,8 +199,8 @@ instead of a numeric reading. Hue is most useful when an object is nearby.
 
 Readings refresh approximately every 100 ms during autonomous selection and,
 after pre-autonomous setup finishes, while disabled, in autonomous, and in
-driver control. Line 3 remains reserved for the autonomous number and alliance
-color. The display only reads the sensors; it does not change motor control or
+driver control. Line 3 remains reserved for the autonomous number, alliance
+color, and wing. The display only reads the sensors; it does not change motor control or
 sensor lighting.
 
 ## Active Toggle Autonomous Test

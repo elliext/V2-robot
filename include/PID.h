@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vex.h"
+#include <vex.h>
 #include "robot-config.h"
 
 // Drive target and tolerance are in inches.
