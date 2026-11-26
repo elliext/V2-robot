@@ -243,6 +243,8 @@ accept their GitHub invitation first.
    Confirm that the VEX extension detects and selects the intended Brain.
 5. Confirm the destination program slot. This project's default is **slot 1**;
    downloading there replaces any program already in that slot.
+   Use **slot 4** only as a temporary local override for vision-related testing.
+   Restore slot 1 afterward; do not commit or push the temporary slot-4 override.
 6. Use the VEX extension's download action. If the Brain is not detected, check
    its power, the USB data cable, and device selection before retrying.
 
