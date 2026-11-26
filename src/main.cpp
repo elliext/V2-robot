@@ -17,6 +17,7 @@
 #include "Arm.h"
 #include "Drivetrain.h"
 #include "Toggle.h"
+#include "AIVision.h"
 using namespace vex;
 
 // A global instance of competition                          
@@ -37,6 +38,7 @@ void pre_auton(void) {
   // Initializing Robot Configuration. DO NOT REMOVE!
   
   vexcodeInit();
+  updateAIVisionDisplay();
   Arm.setPosition(0,degrees);
   inertialSensor.calibrate();
   while(inertialSensor.isCalibrating()==true){
@@ -91,6 +93,7 @@ int main() {
   // Prevent main from exiting with an infinite loop.
   while (true) { 
     updateOpticalDisplay();
+    updateAIVisionDisplay();
     wait(100, msec);
   }
 }

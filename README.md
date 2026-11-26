@@ -40,6 +40,68 @@ controls.
 
 ## Current Status
 
+### AI Vision Sensor: Detection Display
+
+The AI Vision Sensor is configured on **Brain Smart Port 6**. Connect it to the
+Brain with a Smart Cable, and connect the Brain to the computer by USB to
+download the program. Direct sensor-to-computer USB is not needed for runtime
+detection.
+
+This first increment enables **pre-trained AI model detection only**. It shows
+detected class names, IDs, confidence scores, and center coordinates on the
+Brain screen during autonomous selection and after pre-autonomous setup.
+It does not steer, approach objects, change autonomous routines, or assign an
+assist button. Existing controller optical readouts and driver controls remain
+unchanged; **L1 already controls the arm**.
+
+In [src/AIVision.cpp](src/AIVision.cpp):
+
+- `kTargetClassName` is empty by default, so all detected model classes appear.
+  Set it to an exact reported class name to filter the display.
+- `kRefreshIntervalMs` controls the display/snapshot interval (default 250 ms).
+- Up to 24 detections are sampled, with up to 6 matching objects displayed.
+
+The sensor can recognize only classes in its installed model. Hardware testing
+with the Override model confirmed `Cup` (ID 4) and `RedYellowPin` (ID 2), and
+confirmed that detections clear when the objects leave the view. Other pin
+classes and goals have not yet been verified. No class names or IDs are
+hard-coded as targets. Missing hardware and invalid
+snapshot counts are reported on the Brain screen and in console output.
+Detection resumes automatically after a detected disconnection and reconnection.
+
+To check recognition, power on the Brain, download/run the program, and place
+each desired game object in view. The Brain should show its class and position
+if supported. This display adds no motor commands, but the **existing robot
+program is not a motor-free test**: pre-autonomous setup and enabled competition
+tasks retain their existing behavior. Keep the robot supported and mechanisms
+clear while testing. Hold-to-center, approach assist, and autonomous integration
+are deferred until recognition and driver preferences are confirmed.
+
+#### AI Vision Unit Tests
+
+Run the host-side tests without connecting any VEX hardware:
+
+```sh
+make test
+```
+
+This requires a host C++11 compiler (`c++` by default; override with
+`HOST_CXX=clang++` if needed), but no VEX SDK or additional test dependencies.
+The tests compile the actual [AI Vision display code](src/AIVision.cpp) against
+small sensor, timer, and screen fakes in [tests/fakes/vex.h](tests/fakes/vex.h).
+Each case runs in a separate process so the display's static state is isolated.
+
+The 11 cases cover missing hardware, model-only configuration, reported object
+data, default all-class filtering, rejected object types/nonexistent objects,
+stale-data clearing, the 6-row display limit with 24 detections, invalid snapshot
+counts and recovery, the exact 250 ms refresh boundary, and reconnection.
+The test binary is stored under `build/tests`, separately from the robot build.
+
+These tests replace the motor-free diagnostic build mode. They do not download
+or run anything on the Brain, test motor movement, validate a real AI model, or
+prove physical recognition. The earlier Cup and RedYellowPin results above are
+hardware observations; real-world recognition still requires a hardware test.
+
 The source files, headers, and build files were copied from the team's
 `for_now_use_this` project. They include device definitions, pre-autonomous
 initialization, autonomous selection and routines, PID movement, and separate

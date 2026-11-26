@@ -28,3 +28,18 @@ all: $(BUILD)/$(PROJECT).bin
 
 # include build rules
 include vex/mkrules.mk
+
+HOST_CXX ?= c++
+TEST_BINARY = build/tests/ai-vision-tests
+TEST_SOURCES = src/AIVision.cpp tests/AIVisionTest.cpp
+TEST_HEADERS = include/AIVision.h tests/fakes/vex.h
+
+.PHONY: test
+test: $(TEST_BINARY)
+	@set -e; for test_case in $$("$(TEST_BINARY)" --list); do \
+		"$(TEST_BINARY)" "$$test_case"; \
+	done
+
+$(TEST_BINARY): $(TEST_SOURCES) $(TEST_HEADERS) makefile
+	@mkdir -p "$(@D)"
+	$(HOST_CXX) -std=c++11 -Wall -Wextra -Werror -Itests/fakes -Iinclude $(TEST_SOURCES) -o "$@"
