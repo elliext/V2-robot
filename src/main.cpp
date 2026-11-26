@@ -73,6 +73,7 @@ void usercontrol(void) {
   armControl.stop();
   clawControl.stop();
   toggleControl.stop();
+  motorizedToggleing(true);
 }
 //
 // Main will set up the competition functions and callbacks.
@@ -88,6 +89,7 @@ int main() {
   pre_auton();
   // Prevent main from exiting with an infinite loop.
   while (true) { 
+    updateOpticalDisplay();
     wait(100, msec);
   }
 }

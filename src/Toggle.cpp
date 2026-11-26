@@ -1,9 +1,21 @@
 #include "vex.h"
 #include "Toggle.h"
+#include "auton-selector.h"
 
 using namespace vex;
 
 namespace {
+void showOpticalSensor(optical& sensor, int line, const char* side){
+  Controller.Screen.clearLine(line);
+  Controller.Screen.setCursor(line,1);
+  if(!sensor.installed()){
+    Controller.Screen.print("%s: sensor missing", side);
+    return;
+  }
+  Controller.Screen.print("%s H:%.1f Near:%s", side, sensor.hue(),
+                          sensor.isNearObject() ? "Y" : "N");
+}
+
 bool updateActiveSide(motor& toggleMotor, optical& sensor, bool redAlliance,
                       bool completed){
   if(completed || !sensor.isNearObject()){
@@ -11,8 +23,8 @@ bool updateActiveSide(motor& toggleMotor, optical& sensor, bool redAlliance,
     return completed;
   }
   const double hue = sensor.hue();
-  const bool targetColor = redAlliance ? (hue < 30 || hue > 330) :
-                                        (hue >= 180 && hue <= 260);
+  const bool targetColor = redAlliance ? (hue < 40 || hue >= 350) :
+                                        (hue >= 100 && hue <= 260);
   if(targetColor){
     toggleMotor.stop(coast);
     return true;
@@ -24,9 +36,28 @@ bool updateActiveSide(motor& toggleMotor, optical& sensor, bool redAlliance,
 void stopActiveToggle(){
   toggleLeft.stop(coast);
   toggleRight.stop(coast);
-  toggleOpticalLeft.setLight(ledState::off);
-  toggleOpticalRight.setLight(ledState::off);
+  toggleOptical1.setLight(ledState::off);
+  toggleOptical2.setLight(ledState::off);
 }
+
+void enableToggleLights(){
+  toggleOptical1.setLightPower(100,percent);
+  toggleOptical2.setLightPower(100,percent);
+  toggleOptical1.setLight(ledState::on);
+  toggleOptical2.setLight(ledState::on);
+}
+}
+
+void updateOpticalDisplay(){
+  static timer displayTimer;
+  static bool firstUpdate = true;
+  if(!firstUpdate && displayTimer.time(msec) < 100){
+    return;
+  }
+  firstUpdate = false;
+  displayTimer.reset();
+  showOpticalSensor(toggleOptical2,1,"L");
+  showOpticalSensor(toggleOptical1,2,"R");
 }
 
 bool activeToggle(vex::competition& competitionState, bool redAlliance){
@@ -36,30 +67,27 @@ bool activeToggle(vex::competition& competitionState, bool redAlliance){
     printf("Active toggle: requires enabled autonomous mode.\n");
     return false;
   }
-  if(!toggleOpticalLeft.installed() || !toggleOpticalRight.installed()){
+  if(!toggleOptical1.installed() || !toggleOptical2.installed()){
     printf("Active toggle: optical sensor missing on port 5 or 6.\n");
     Controller.rumble("---");
     return false;
   }
-  toggleOpticalLeft.setLightPower(50,percent);
-  toggleOpticalRight.setLightPower(50,percent);
-  toggleOpticalLeft.setLight(ledState::on);
-  toggleOpticalRight.setLight(ledState::on);
+  enableToggleLights();
   timer toggleTimer;
   toggleTimer.reset();
   bool leftCompleted = false;
   bool rightCompleted = false;
   while(competitionState.isEnabled() && competitionState.isAutonomous() &&
         toggleTimer.time(msec) < TIMEOUT_MS){
-    if(!toggleOpticalLeft.installed() || !toggleOpticalRight.installed()){
+    if(!toggleOptical1.installed() || !toggleOptical2.installed()){
       stopActiveToggle();
       printf("Active toggle: optical sensor disconnected.\n");
       Controller.rumble("---");
       return false;
     }
-    leftCompleted = updateActiveSide(toggleLeft, toggleOpticalLeft,
+    leftCompleted = updateActiveSide(toggleLeft, toggleOptical2,
                                     redAlliance, leftCompleted);
-    rightCompleted = updateActiveSide(toggleRight, toggleOpticalRight,
+    rightCompleted = updateActiveSide(toggleRight, toggleOptical1,
                                      redAlliance, rightCompleted);
     if(leftCompleted && rightCompleted){
       stopActiveToggle();
@@ -78,7 +106,7 @@ bool activeToggle(vex::competition& competitionState, bool redAlliance){
 }
 
 void passiveToggleing(){
-  // Passive drivetrain-push example remains inactive.
+  // Passive toggle skeleton only; no optical sensor is configured yet.
 
   // TODO: Declare/configure an optical sensor named toggleOptical in robot-config.
   // TODO: Tune hue ranges, lighting, push speed, and timeout on the robot.
@@ -114,23 +142,56 @@ void passiveToggleing(){
   //   return false;
 }
 
-void motorizedToggleing(){
+void motorizedToggleing(bool resetHold){
+  static bool opticalActive = false;
+  static bool leftCompleted = false;
+  static bool rightCompleted = false;
+  static bool sensorFault = false;
+  if(resetHold || !Controller.ButtonA.pressing() ||
+     Controller.ButtonX.pressing()){
+    opticalActive = false;
+    leftCompleted = false;
+    rightCompleted = false;
+    sensorFault = false;
+    stopActiveToggle();
+  }
+  if(resetHold){
+    return;
+  }
   if (Controller.ButtonX.pressing()){
     toggleLeft.spin(reverse,100,percent);
     toggleRight.spin(reverse,100,percent);
   }
-  else{
-    toggleLeft.stop(coast);
-    toggleRight.stop(coast);
+  else if(Controller.ButtonA.pressing()){
+    if(sensorFault){
+      return;
+    }
+    if(!toggleOptical1.installed() || !toggleOptical2.installed()){
+      stopActiveToggle();
+      sensorFault = true;
+      printf("Driver active toggle: optical sensor missing on port 5 or 6; release A to retry.\n");
+      Controller.rumble("---");
+      return;
+    }
+    if(!opticalActive){
+      enableToggleLights();
+      opticalActive = true;
+    }
+    leftCompleted = updateActiveSide(toggleLeft, toggleOptical2,
+                                    redAlliance, leftCompleted);
+    rightCompleted = updateActiveSide(toggleRight, toggleOptical1,
+                                     redAlliance, rightCompleted);
   }
 }
 
 
 int toggleTask(void* competition){
   auto& competitionState = *static_cast<vex::competition*>(competition);
+  motorizedToggleing(true);
   while(competitionState.isEnabled() && competitionState.isDriverControl()){
     motorizedToggleing();
     wait(20, msec);
   }
+  motorizedToggleing(true);
   return 0;
 }

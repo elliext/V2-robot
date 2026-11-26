@@ -7,6 +7,10 @@
 using namespace vex;
 extern vex::competition Competition;
 
+bool activeToggle(){
+  return activeToggle(Competition, redAlliance);
+}
+
 void pickUpPin(void) {
   claw.spinFor(forward, 800 , msec, 300, rpm);
   claw.stop(hold);
@@ -74,7 +78,9 @@ void autonomous(void) {
       break;
     case 6:
       Drive.stop(brake);
-      activeToggle(Competition, redAlliance);
+      if(!activeToggle()){
+        return;
+      }
       break;
     case 0:
       scoreAllianceGoal();

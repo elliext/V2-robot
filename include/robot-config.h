@@ -20,8 +20,12 @@ extern motor_group Arm;
 
 extern motor toggleLeft;
 extern motor toggleRight;
-extern optical toggleOpticalLeft;
-extern optical toggleOpticalRight;
+
+extern optical toggleOptical1;
+extern optical toggleOptical2;
+//Yellow = 40 - 70
+//Red = 0 - 40, 330 - 360
+//Blue = 100 - 260
 
 extern controller Controller;
 

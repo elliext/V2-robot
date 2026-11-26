@@ -58,17 +58,50 @@ V2's own README and VS Code project settings are retained.
 
 - **Hold Button X:** run both toggle motors in reverse at
   100% power.
-- **Release Button X:** stop powering the motor with **coast**, without active
-  braking or position holding. The mechanism can continue moving from momentum.
+- **Hold Button A:** use the optical sensors to turn each toggle to the selected
+  alliance color. Each side runs at 100% only while its own sensor sees a nearby
+  object of the wrong color, and stays stopped after reaching the target until
+  A is released. This is nonblocking and remains active only while A is held;
+  unlike autonomous, there is no automatic 3-second timeout.
+- **Release both A and X:** stop powering both motors with **coast**, without
+  active braking or position holding. The mechanism can continue moving from
+  momentum. Releasing A cancels optical control; press it again to start fresh.
+- **A and X together:** X manual control takes priority. Releasing X while A is
+  still held starts a fresh optical-control session.
+- Sensor failure stops both motors in optical mode and reports the error once
+  per hold. Release A before retrying. Driver-control exit also coasts the motors.
 
 The passive-toggle optical-sensor example remains commented out and inactive.
 Driver Button X control remains manual and does not use the optical sensors.
+Button A no longer activates the arm's -30/+30-degree preset; the arm's existing
+manual controls and position holding remain in place. A still confirms the
+autonomous selection during pre-autonomous setup.
+
+## Optical Sensor Controller Display
+
+Controller lines 1 and 2 show live readings for the left (port 6) and right
+(port 5) optical sensors:
+
+```text
+L H:25.0 Near:Y
+R H:220.0 Near:N
+```
+
+`H` is the hue in degrees; `Near:Y` means the sensor detects a nearby object,
+and `Near:N` means it does not. A disconnected sensor shows `sensor missing`
+instead of a numeric reading. Hue is most useful when an object is nearby.
+
+Readings refresh approximately every 100 ms during autonomous selection and,
+after pre-autonomous setup finishes, while disabled, in autonomous, and in
+driver control. Line 3 remains reserved for the autonomous number and alliance
+color. The display only reads the sensors; it does not change motor control or
+sensor lighting.
 
 ## Active Toggle Autonomous Test
 
-- **Left optical sensor:** Brain port **5**, controls the left toggle motor on
+- **Left optical sensor (`toggleOptical2`):** Brain port **6**, controls the left toggle motor on
   port **13**.
-- **Right optical sensor:** Brain port **6**, controls the right toggle motor on
+- **Right optical sensor (`toggleOptical1`):** Brain port **5**, controls the right toggle motor on
   port **3**.
 - During pre-autonomous selection, use **Left/Right** to choose routine **6**,
   **Up** to select **Red**, or **Down** to select **Blue**, then **A** to confirm.
@@ -86,12 +119,30 @@ Driver Button X control remains manual and does not use the optical sensors.
   or leaving autonomous stops motor power; failures print a message and rumble
   the controller. Sensor lights are turned off on normal cleanup.
 
-The implementation uses sensor lights at 50%, red hue below 30 or above 330,
-and blue hue from 180 through 260. Verify detection under competition lighting
+The implementation uses sensor lights at 50%, red hue below 20 or at least 330,
+and blue hue from 190 through 260, keeping the documented yellow range
+(20 through 45) separate from red. Verify detection under competition lighting
 and tune the hue thresholds and `TIMEOUT_MS` in [src/Toggle.cpp](src/Toggle.cpp)
 on the robot. Coast allows momentum to move the mechanism after motor power is
 removed; test the 100% setting carefully. Existing routines 0 through 5 do not
 automatically invoke the active toggle.
+
+### Calling the Active Toggle from an Autonomous Routine
+
+With [include/autonomos.h](include/autonomos.h) included, call:
+
+```cpp
+if(!activeToggle()){
+  return;
+}
+```
+
+The no-argument function uses the selected Red/Blue alliance color and the
+current competition state. It blocks until both toggles reach the target color
+or the 3-second timeout ends. It returns `true` on success and `false` on a
+timeout, sensor failure, or an invalid/ended autonomous mode, so the routine can
+avoid continuing after a failure. Position the robot at the toggles and stop
+drivetrain motion before calling it. Autonomous option 6 uses this same call.
 
 ## Getting Started
 

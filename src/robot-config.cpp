@@ -23,10 +23,12 @@ motor claw = motor (PORT11, ratio18_1,true);
 
 motor toggleLeft = motor (PORT13, ratio18_1,false);
 motor toggleRight = motor (PORT3, ratio18_1,true);
-optical toggleOpticalLeft = optical(PORT5);
-optical toggleOpticalRight = optical(PORT6);
 inertial inertialSensor = inertial(PORT16);
+
 controller Controller = controller(primary);
+
+optical toggleOptical1 = optical(PORT5);
+optical toggleOptical2 = optical(PORT15);
 
 /**
  * Used to initialize code/tasks/devices added using tools in VEXcode Pro.
