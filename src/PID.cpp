@@ -60,6 +60,12 @@ void turnPID(double target, double maxIntegral, double tolerance, double timeout
     Controller.rumble("---");
     return;
   }
+  if(!inertialSensor.installed() || inertialSensor.isCalibrating()){
+    Drive.stop(brake);
+    printf("Turn PID: inertial sensor is missing or still calibrating.\n");
+    Controller.rumble("---");
+    return;
+  }
   
   //Initialize remaining variables
   double error = target;
@@ -69,9 +75,9 @@ void turnPID(double target, double maxIntegral, double tolerance, double timeout
   double lastError = error;
   double total = 0;
 
-  double kP = 1;
-  double kI = 0;
-  double kD = 0;
+  double kP = 1.1;
+  double kI = 0.12;
+  double kD = 0.12;
   
   const bool timeoutEnabled = timeoutMs>0;
   timer turnTimer;
@@ -99,8 +105,8 @@ void turnPID(double target, double maxIntegral, double tolerance, double timeout
     //Calculate the target speed for the drivetrain
     total=kP*error+kD*derivative+kI*integral;
     //Spin drivetrain at the target speed
-    LeftDrive.spin(forward,total,percent);
-    RightDrive.spin(reverse,total,percent);
+    LeftDrive.spin(reverse,total,percent);
+    RightDrive.spin(forward,total,percent);
     
     
 

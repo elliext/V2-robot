@@ -11,9 +11,9 @@ extern motor RightBack;
 extern motor_group LeftDrive;
 extern motor_group RightDrive;
 extern motor_group Drive;
+
 extern motor claw;
-extern inertial inertialSensor;
-// arm port is 15 left 16 right
+
 extern motor ArmLeft;
 extern motor ArmRight;
 extern motor_group Arm;
@@ -23,6 +23,8 @@ extern motor toggleRight;
 
 extern optical toggleOptical1;
 extern optical toggleOptical2;
+
+extern inertial inertialSensor;
 //Yellow = 31 - 70
 //Red = 0 - 31, 330 - 360
 //Blue = 100 - 330

@@ -66,7 +66,7 @@ void autonomous(void) {
       Arm.stop(brake);
     break;
     case 1:
-      turnPID(90, 2, 0.5);
+      turnPID(-90, 2, 0.5, 3000);
       //task monitorToggle(monitorToggleCallback);
       break;
     case 3:

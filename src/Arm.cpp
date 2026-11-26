@@ -8,7 +8,7 @@ void ArmControll(bool resetHold){
   static double leftHoldPosition = 0;
   static double rightHoldPosition = 0;
   const double kP = 2.0;
-  const double MAX_HOLD_SPEED = 1.0;
+  const double MAX_HOLD_SPEED = 0.5;
 
   if(resetHold){
     holdingPosition = false;

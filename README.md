@@ -231,6 +231,13 @@ controller. The existing 50 ms settling delay follows braking. Negative or
 non-finite timeouts are rejected with braking and an error notification.
 With no timeout, a turn that never reaches its tolerance can keep running.
 
+Positive turn targets are clockwise (right); negative targets are
+counterclockwise (left), matching the inertial sensor's signed rotation.
+The inertial sensor is currently configured on Brain port **1** and must finish
+calibrating while the robot is stationary. Turns are rejected if the sensor
+is missing or still calibrating. The +90-degree autonomous test explicitly uses
+a 3000 ms timeout; other calls retain their chosen timeout behavior.
+
 - Keep motor ports, gear cartridges, and reversal settings consistent with the
   physical V2 robot.
 - Verify the two drive motors per side and the left/right toggle motor and sensor
