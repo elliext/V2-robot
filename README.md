@@ -206,6 +206,15 @@ Generated build outputs are excluded from Git.
 
 ## Development
 
+### Drive PID Distance Feedback
+
+`drivePID` uses 3.25-inch wheels and a 36-tooth motor gear driving a 60-tooth
+wheel gear. Distance is motor revolutions times wheel circumference divided by
+`5/3`, with no extra calibration factor. Because positive drive commands spin
+the motors in reverse, the `LeftBack` encoder reading is negated before this
+conversion so measured distance and target distance have matching signs.
+Test a short move in both directions in open space before running autonomous.
+
 ### Turn PID Timeout
 
 `turnPID(target, maxIntegral, tolerance, timeoutMs)` accepts an optional fourth

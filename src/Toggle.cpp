@@ -7,11 +7,11 @@ using namespace vex;
 namespace {
 // ---- Optical tuning. Measured on robot: yellow 21-42, blue OK in 180-260.
 // Verify red with the controller readout and move kRedHi/kRedLo if needed. ----
-constexpr double kLightPowerPct      = 50;   // 100% washes out glossy plastic
+constexpr double kLightPowerPct      = 100;   // 100% washes out glossy plastic
 constexpr int    kProximityThreshold = 40;   // 0-255; lower = triggers farther away
-constexpr double kRedLo    = 340, kRedHi    = 12;   // wraps around 0
-constexpr double kYellowLo = 18,  kYellowHi = 60;
-constexpr double kBlueLo   = 180, kBlueHi   = 260;
+constexpr double kRedLo    = 360, kRedHi    = 24;   // wraps around 0
+constexpr double kYellowLo = 24,  kYellowHi = 70;
+constexpr double kBlueLo   = 100, kBlueHi   = 330;
 
 
 bool isRed(double h)    { return h >= kRedLo || h <= kRedHi; }

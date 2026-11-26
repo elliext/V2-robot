@@ -23,9 +23,9 @@ extern motor toggleRight;
 
 extern optical toggleOptical1;
 extern optical toggleOptical2;
-//Yellow = 40 - 70
-//Red = 0 - 40, 330 - 360
-//Blue = 100 - 260
+//Yellow = 31 - 70
+//Red = 0 - 31, 330 - 360
+//Blue = 100 - 330
 
 extern controller Controller;
 

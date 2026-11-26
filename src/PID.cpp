@@ -11,9 +11,9 @@ void drivePID(double target, double maxIntegral, double tolerance){
   double lastError = error;
   double total = 0;
 
-  double kP = 8.5;
-  double kI = .01;
-  double kD = 0.3;
+  double kP = 3.4;
+  double kI = 0.7;
+  double kD = 0.008;
   const double GEAR_RATIO = (double) 5/3;
   const double WHEEL_CIRCUMFERENCE = 3.25* M_PI;
   LeftBack.setPosition(0,degrees);
@@ -21,7 +21,8 @@ void drivePID(double target, double maxIntegral, double tolerance){
   while(fabs(error)>tolerance){
 
     //Calculate how far the robot is from the target
-    double measuredValue = (LeftBack.position(degrees))/360 *
+    // Positive drive commands use reverse motor rotation.
+    double measuredValue = -LeftBack.position(degrees)/360 *
         WHEEL_CIRCUMFERENCE/GEAR_RATIO;
     error=target-measuredValue;
     //Find integral value
@@ -40,7 +41,7 @@ void drivePID(double target, double maxIntegral, double tolerance){
     total=kP*error+kD*derivative+kI*integral;
     //Spin drivetrain at the target speed
     
-    Drive.spin(forward,total,percent);
+    Drive.spin(reverse,total,percent);
     
 
 
@@ -68,9 +69,9 @@ void turnPID(double target, double maxIntegral, double tolerance, double timeout
   double lastError = error;
   double total = 0;
 
-  double kP = 0.6;
-  double kI = 0.005;
-  double kD = 0.01;
+  double kP = 1;
+  double kI = 0;
+  double kD = 0;
   
   const bool timeoutEnabled = timeoutMs>0;
   timer turnTimer;
@@ -98,7 +99,7 @@ void turnPID(double target, double maxIntegral, double tolerance, double timeout
     //Calculate the target speed for the drivetrain
     total=kP*error+kD*derivative+kI*integral;
     //Spin drivetrain at the target speed
-    LeftDrive.spin(reverse,total,percent);
+    LeftDrive.spin(forward,total,percent);
     RightDrive.spin(reverse,total,percent);
     
     
