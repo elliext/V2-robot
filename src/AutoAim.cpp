@@ -48,9 +48,33 @@ AssistOutput finished(AssistEvent event) {
 }
 }
 
+namespace {
+// A pin counts as in the cup when its center is within the cup's width and the
+// two boxes overlap vertically; a pin standing in a cup usually sticks out the top.
+bool pinInCup(const vex::aivision::object& cup, const vex::aivision::object* objects,
+              int count) {
+  for (int i = 0; i < count; ++i) {
+    const auto& pin = objects[i];
+    if (!pin.exists || pin.type != vex::aivision::objectType::modelObject ||
+        strcmp(pin.className, "RedYellowPin") != 0) {
+      continue;
+    }
+    const bool withinWidth = pin.centerX >= cup.originX &&
+                             pin.centerX <= cup.originX + cup.width;
+    const bool overlapsVertically = pin.originY < cup.originY + cup.height &&
+                                    pin.originY + pin.height > cup.originY;
+    if (withinWidth && overlapsVertically) {
+      return true;
+    }
+  }
+  return false;
+}
+}
+
 Observation observeCup(const vex::aivision::object* objects, int count) {
   Observation best;
   int bestBottom = 0;
+  bool bestHasPin = false;
   for (int i = 0; i < count; ++i) {
     const auto& object = objects[i];
     if (!object.exists || object.type != vex::aivision::objectType::modelObject ||
@@ -58,14 +82,19 @@ Observation observeCup(const vex::aivision::object* objects, int count) {
         object.height < kUprightRatio * object.width) {
       continue;
     }
-    // On the floor, a nearer cup sits lower in the image.
+    // Prefer a cup that already holds a pin; among equals, the nearest. On the
+    // floor, a nearer cup sits lower in the image.
+    const bool hasPin = pinInCup(object, objects, count);
     const int bottom = object.originY + object.height;
-    if (!best.visible || bottom > bestBottom) {
+    const bool better = !best.visible || (hasPin && !bestHasPin) ||
+                        (hasPin == bestHasPin && bottom > bestBottom);
+    if (better) {
       best.visible = true;
       best.centerX = object.centerX;
       best.size = object.height;
       best.bottomClipped = bottom >= kImageHeight - 2;
       bestBottom = bottom;
+      bestHasPin = hasPin;
     }
   }
   return best;

@@ -20,6 +20,7 @@ vex::aivision::object cup(int centerX, int width, int height, int bottom) {
   object.exists = true;
   object.className = "Cup";
   object.centerX = centerX;
+  object.originX = centerX - width / 2;
   object.width = width;
   object.height = height;
   object.originY = bottom - height;
@@ -55,6 +56,27 @@ void selectsNearestUprightCup() {
           "Empty input has no target");
   vex::aivision::object floorEdge = cup(100, 50, 100, 240);
   require(observeCup(&floorEdge, 1).bottomClipped, "Cup at the bottom edge is clipped");
+}
+
+void prefersCupHoldingPin() {
+  vex::aivision::object objects[4];
+  objects[0] = cup(60, 40, 80, 220);   // Nearest cup, empty.
+  objects[1] = cup(200, 40, 80, 150);  // Farther cup holding a pin.
+  objects[2] = cup(200, 30, 40, 100);  // Pin sticking out of cup 1.
+  objects[2].className = "RedYellowPin";
+  objects[3] = cup(260, 40, 80, 230);  // Even nearer cup, also empty.
+  Observation observation = observeCup(objects, 4);
+  require(observation.visible && observation.centerX == 200,
+          "A cup holding a pin beats a nearer empty cup");
+
+  objects[2] = cup(120, 30, 40, 100);  // Pin between the cups, in neither.
+  objects[2].className = "RedYellowPin";
+  observation = observeCup(objects, 4);
+  require(observation.centerX == 260, "A pin outside every cup changes nothing");
+
+  objects[2].exists = false;
+  observation = observeCup(objects, 4);
+  require(observation.centerX == 260, "With no pin the nearest cup is chosen");
 }
 
 void selectsLargestGoalTag() {
@@ -201,6 +223,7 @@ void newPressRestartsWithNewTarget() {
 int main() {
   try {
     selectsNearestUprightCup();
+    prefersCupHoldingPin();
     selectsLargestGoalTag();
     aimTurnsTowardTargetThenLocks();
     aimReportsMissingTarget();

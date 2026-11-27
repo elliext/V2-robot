@@ -17,7 +17,8 @@ struct Observation {
   bool bottomClipped = false;
 };
 
-// Nearest upright cup, or an invisible observation.
+// Upright cup, or an invisible observation. A cup holding a pin wins; otherwise
+// the nearest cup.
 Observation observeCup(const vex::aivision::object* objects, int count);
 // Nearest goal, judged by the largest AprilTag.
 Observation observeGoal(const GoalTagDetection* tags, int count);

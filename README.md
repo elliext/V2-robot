@@ -291,8 +291,10 @@ builds remain manual-calibration only.
 
 In driver control, the **Up** and **Down** buttons aim at and approach a target:
 
-- **Up** (cup): hold to turn toward the nearest *upright* cup (taller than wide,
-  lowest in the image); tipped cups and pins are ignored.
+- **Up** (cup): hold to turn toward an *upright* cup (taller than wide). A cup that
+  already holds a pin is preferred; otherwise the nearest (lowest in the image).
+  A pin counts as in a cup when its center is within the cup's width and the boxes
+  overlap vertically. Tipped cups and loose pins are ignored.
 - **Down** (goal): hold to turn toward the nearest goal, judged by the largest
   AprilTag.
 - **Release** to drive up to the target. The controller rumbles once when the aim
