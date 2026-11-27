@@ -77,6 +77,13 @@ void prefersCupHoldingPin() {
   objects[2].exists = false;
   observation = observeCup(objects, 4);
   require(observation.centerX == 260, "With no pin the nearest cup is chosen");
+
+  // Any pin class counts, not just the one used in testing.
+  objects[2] = cup(200, 30, 40, 100);
+  objects[2].className = "BlueOrangePin";
+  require(observeCup(objects, 4).centerX == 200, "Any class ending in Pin counts as a pin");
+  objects[2].className = "Pinwheel";
+  require(observeCup(objects, 4).centerX == 260, "A class that only contains Pin is not a pin");
 }
 
 void selectsLargestGoalTag() {

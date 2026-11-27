@@ -1,5 +1,6 @@
 #include "vex.h"
 #include "AutoAim.h"
+#include "GameObjects.h"
 
 namespace {
 // Pixel values are for the 320x240 AI Vision image. The stop sizes and the aim
@@ -56,7 +57,7 @@ bool pinInCup(const vex::aivision::object& cup, const vex::aivision::object* obj
   for (int i = 0; i < count; ++i) {
     const auto& pin = objects[i];
     if (!pin.exists || pin.type != vex::aivision::objectType::modelObject ||
-        strcmp(pin.className, "RedYellowPin") != 0) {
+        !isPinClass(pin.className)) {
       continue;
     }
     const bool withinWidth = pin.centerX >= cup.originX &&
@@ -78,7 +79,7 @@ Observation observeCup(const vex::aivision::object* objects, int count) {
   for (int i = 0; i < count; ++i) {
     const auto& object = objects[i];
     if (!object.exists || object.type != vex::aivision::objectType::modelObject ||
-        strcmp(object.className, "Cup") != 0 || object.width <= 0 ||
+        !isCupClass(object.className) || object.width <= 0 ||
         object.height < kUprightRatio * object.width) {
       continue;
     }

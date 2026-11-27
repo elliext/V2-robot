@@ -1,6 +1,7 @@
 #include "vex.h"
 #include "AIVision.h"
 #include "AprilTag.h"
+#include "GameObjects.h"
 
 using namespace vex;
 
@@ -23,7 +24,7 @@ double objectLengthMm(const aivision::object& object) {
   if (strcmp(object.className, "Cup") == 0) {
     return 164.5;
   }
-  if (strcmp(object.className, "RedYellowPin") == 0) {
+  if (isPinClass(object.className)) {
     return 165.1;
   }
   return 0;

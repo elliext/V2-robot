@@ -156,8 +156,8 @@ The sensor can recognize only classes in its installed model. Hardware testing
 with the Override model confirmed `Cup` (ID 4) and `RedYellowPin` (ID 2), and
 confirmed that detections clear when the objects leave the view. Other pin
 classes and goals have not yet been verified. No class names or IDs are
-hard-coded as detection filters. Distance estimation supports only the confirmed
-`Cup` and `RedYellowPin` class names. Missing hardware and invalid
+hard-coded as detection filters. Distance estimation supports `Cup` and any class
+whose name ends in `Pin`; only `RedYellowPin` has been confirmed on hardware. Missing hardware and invalid
 snapshot counts are reported on the Brain screen and in console output.
 Detection resumes automatically after a detected disconnection and reconnection.
 
