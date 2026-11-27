@@ -1,4 +1,4 @@
-# include "auton-selector.h"
+# include "match-setup.h"
 # include "Toggle.h"
 # include "AIVision.h"
 bool redAlliance = true;
@@ -7,15 +7,15 @@ bool isRight = false;
 namespace {
 void showSelection(bool confirmed = false){
     char text[21];
-    snprintf(text, sizeof(text), "%s %s %s", confirmed ? "Set" : "Auton",
+    snprintf(text, sizeof(text), "%s %s %s", confirmed ? "Set" : "Setup",
              redAlliance ? "Red" : "Blue", isRight ? "Right" : "Left");
     Controller.Screen.setCursor(3,1);
     Controller.Screen.print("%-20s", text);
-    printf("Auton selector: %s\n", text);
+    printf("Match setup: %s\n", text);
 }
 }
 
-void selectAuton(){
+void selectMatchSetup(){
     showSelection();
     // A held while launching the program must not confirm the selection.
     while(Controller.ButtonA.pressing()){

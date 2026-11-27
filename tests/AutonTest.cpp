@@ -1,5 +1,5 @@
 #include "vex.h"
-#include "auton-selector.h"
+#include "match-setup.h"
 #include "autonomos.h"
 #include "PID.h"
 
@@ -61,7 +61,7 @@ void selectConfiguration(bool red, bool right) {
   inputs.push_back(frame);
   Controller = inputs.front();
   selecting = true;
-  selectAuton();
+  selectMatchSetup();
   selecting = false;
   require(redAlliance == red && isRight == right, "Incorrect starting configuration");
   std::string expected = std::string("Set ") +
@@ -125,7 +125,10 @@ void checkRoute(bool red, bool right) {
 void vex::wait(int duration, vex::timeUnits) {
   fake::nowMs += duration;
   if (selecting) {
-    require(++inputIndex < inputs.size(), "Selector did not confirm");
+    if (inputIndex == 0) {
+      require(Controller.Screen.text.find("Setup ") == 0, "Match setup prompt not displayed");
+    }
+    require(++inputIndex < inputs.size(), "Match setup did not confirm");
     const auto& frame = inputs[inputIndex];
     Controller.ButtonA = frame.ButtonA;
     Controller.ButtonLeft = frame.ButtonLeft;
@@ -170,7 +173,7 @@ int main() {
     Controller = inputs[0];
     inputIndex = 0;
     selecting = true;
-    selectAuton();
+    selectMatchSetup();
     selecting = false;
     require(!isRight, "Cannot switch back to Left wing");
     toggleResult = false;
@@ -186,7 +189,7 @@ int main() {
     Controller = inputs[0];
     inputIndex = 0;
     selecting = true;
-    selectAuton();
+    selectMatchSetup();
     selecting = false;
     require(inputIndex == 4 && !redAlliance && isRight,
             "A held at launch confirmed before a new press");
@@ -199,12 +202,12 @@ int main() {
     Controller = inputs[0];
     inputIndex = 0;
     selecting = true;
-    selectAuton();
+    selectMatchSetup();
     selecting = false;
     require(!redAlliance && isRight, "Unused directional arrows changed configuration");
     require(Controller.Screen.printCalls == 2, "Unused arrows caused selection redraws");
     require(Controller.Screen.text == "Set Blue Right      ", "Routine number remains in display");
-    std::cout << "PASS alliance/wing selection, mirrored autonomous, and unused routine arrows\n";
+    std::cout << "PASS match setup, mirrored autonomous, and unused routine arrows\n";
   } catch (const std::exception& error) {
     std::cerr << "FAIL autonomous: " << error.what() << '\n';
     return 1;

@@ -33,7 +33,7 @@ void updateAt(int time) {
 
 int main() {
   try {
-    Controller.Screen.lines[2] = "Auton Red Left";
+    Controller.Screen.lines[2] = "Setup Red Left";
     toggleOptical1.connected = toggleOptical2.connected = false;
     updateAt(0);
     require(Controller.Screen.printCalls == 2, "Missing sensors not initially displayed");
@@ -68,7 +68,7 @@ int main() {
     updateAt(700);
     require(Controller.Screen.printCalls == 7, "Second reconnection not displayed");
     require(Controller.Screen.clearCalls == 0, "Optical redraws clear and flicker");
-    require(Controller.Screen.lines[2] == "Auton Red Left", "Optical display overwrote selection");
+    require(Controller.Screen.lines[2] == "Setup Red Left", "Optical display overwrote match setup");
     require(toggleLeft.commands.empty() && toggleRight.commands.empty(),
             "Optical display commanded motors");
     std::cout << "PASS optical display change-only rendering and selection preservation\n";

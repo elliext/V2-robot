@@ -12,7 +12,7 @@
 
 #include "vex.h"
 #include "autonomos.h"
-#include "auton-selector.h"
+#include "match-setup.h"
 #include "Claw.h"
 #include "Arm.h"
 #include "Drivetrain.h"
@@ -30,7 +30,7 @@ competition Competition;
 /*  You may want to perform some actions before the competition starts.      */
 /*  Do them in the following function.  You must return from this function   */
 /*  or the autonomous and usercontrol tasks will not be started.  This       */
-/*  function is only called once after the V5 has been powered on and        */
+/*  function is only called once each time the program is launched and      */
 /*  not every time that the robot is disabled.                               */
 /*---------------------------------------------------------------------------*/
 
@@ -51,7 +51,7 @@ void pre_auton(void) {
   }
   claw.setPosition(0,degrees);
   Controller.rumble("..-");
-  selectAuton();
+  selectMatchSetup();
   claw.spin(forward,50,percent);
   enableToggleLights();
   // All activities that occur before the competition starts
@@ -87,7 +87,7 @@ void usercontrol(void) {
 // Main will set up the competition functions and callbacks.
 //
 int main() {
-#if defined(AI_VISION_TEST) && defined(AUTON_SELECTION_TEST)
+#if defined(AI_VISION_TEST) && defined(MATCH_SETUP_TEST)
 #error Select only one hardware test mode.
 #elif defined(AI_VISION_TEST)
   vexcodeInit();
@@ -113,17 +113,17 @@ int main() {
     renderFault = !rendered;
     wait(20, msec);
   }
-#elif defined(AUTON_SELECTION_TEST)
+#elif defined(MATCH_SETUP_TEST)
   vexcodeInit();
   if(Competition.isFieldControl() || Competition.isCompetitionSwitch()){
-    printf("Selection test: disconnect field control or the competition switch before testing.\n");
-    Brain.Screen.printAt(10, 30, true, "Selection test: disconnect field control.");
+    printf("Match setup test: disconnect field control or the competition switch before testing.\n");
+    Brain.Screen.printAt(10, 30, true, "Match setup test: disconnect field control.");
     return 1;
   }
   // Autonomous mode masks controller input; no motor callbacks are registered here.
   Competition.test_driver();
-  printf("Selection test: motor-free; driver input enabled.\n");
-  selectAuton();
+  printf("Match setup test: motor-free; driver input enabled.\n");
+  selectMatchSetup();
   while(true){
     updateOpticalDisplay();
     updateAIVisionDisplay();
