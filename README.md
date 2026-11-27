@@ -184,6 +184,7 @@ using the field facts in [knowledge/field-setup.md](knowledge/field-setup.md):
 
 It is not confirmed whether Blue's tags are 1-4 or 5-8, so IDs 1-8 are accepted
 and classified by `tagId % 4` (remainder 0 is tag 4). Other IDs are ignored.
+Hardware testing detected tags 0-8 and displayed them as expected.
 `detectGoalTags()` takes a tag snapshot, ignores unknown IDs and missing or
 non-tag objects, and returns each tag's ID, role (center, alliance or neutral),
 center, and size. The tag does not name a quadrant. It overwrites
