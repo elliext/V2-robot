@@ -166,8 +166,9 @@ each desired game object in view. The Brain should show its class and position
 if supported. This display adds no motor commands, but the **existing robot
 program is not a motor-free test**: pre-autonomous setup and enabled competition
 tasks retain their existing behavior. Keep the robot supported and mechanisms
-clear while testing. Hold-to-center, approach assist, and autonomous integration
-are deferred until recognition and driver preferences are confirmed.
+clear while testing. Autonomous integration is deferred until recognition is
+confirmed; driver aim-and-approach is described under
+[Driver Aim and Approach Assist](#driver-aim-and-approach-assist).
 
 #### AprilTag Goal Detection
 
@@ -285,6 +286,49 @@ The current 32-inch reference was only roughly measured, so automatic success
 is labeled `Auto Cal OK; rough 32in reference`. Stability does not prove the
 reference distance, correct pose, or measurement accuracy. Normal competition
 builds remain manual-calibration only.
+
+#### Driver Aim and Approach Assist
+
+In driver control, the **Up** and **Down** buttons aim at and approach a target:
+
+- **Up** (cup): hold to turn toward the nearest *upright* cup (taller than wide,
+  lowest in the image); tipped cups and pins are ignored.
+- **Down** (goal): hold to turn toward the nearest goal, judged by the largest
+  AprilTag.
+- **Release** to drive up to the target. The controller rumbles once when the aim
+  locks and twice on arrival; three long pulses mean no target, a lost target, or
+  a timeout. A target that vanishes after reaching 80% of the stop size counts as
+  arrived, since the sensor loses objects that are very close. Pushing either stick
+  past 50% during the approach cancels it, and
+  pressing a button again re-aims. Pressing both buttons cancels.
+
+The sticks and the assist never drive together: [src/AutoAim.cpp](src/AutoAim.cpp)
+holds the hardware-free state machine, and [src/AssistDrive.cpp](src/AssistDrive.cpp)
+runs from `drivetrainTask`, which skips the stick drive while the assist is active.
+Snapshots are taken under `AIVisionLock` so the assist and the Brain display do not
+overwrite each other's `AIVision.objects`.
+
+The aim point (`kAimCenterX`), stop sizes (`kCupStopSize`, `kGoalStopSize`), gains,
+and speeds at the top of [src/AutoAim.cpp](src/AutoAim.cpp) are **untuned
+estimates**. Tune them on the robot; each arrival prints the target size.
+Only aiming and approaching are included; picking up and dropping stay manual.
+
+For a **motor-free aim test**, build with a separate output directory:
+
+```sh
+make all BUILD=build/aim-test P=Aim-test DEFINES="-DVexV5 -DAIM_TEST"
+```
+
+This build refuses field-control connections, runs no competition callbacks, and
+never commands a motor. The Brain screen shows the held button, assist state, the
+target's x position, size and pixel error, the turn/forward the assist *would*
+command, the last event, the last-seen/peak size next to the stop size, and the
+raw cup detections (class, width x height, accepted or rejected); the controller
+still rumbles. Hold Up or Down to
+check the aim and lock. To check the approach, release the button and move the
+target toward the sensor by hand: forward output shrinks as the size grows and
+`Arrived` appears at the stop size. Do not combine it with `AI_VISION_TEST` or
+`AUTON_SELECTION_TEST`.
 
 #### AI Vision Unit Tests
 

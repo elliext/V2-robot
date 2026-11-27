@@ -18,6 +18,7 @@
 #include "Drivetrain.h"
 #include "Toggle.h"
 #include "AIVision.h"
+#include "AssistDrive.h"
 using namespace vex;
 
 // A global instance of competition                          
@@ -87,8 +88,25 @@ void usercontrol(void) {
 // Main will set up the competition functions and callbacks.
 //
 int main() {
-#if defined(AI_VISION_TEST) && defined(AUTON_SELECTION_TEST)
+#if (defined(AI_VISION_TEST) + defined(AUTON_SELECTION_TEST) + defined(AIM_TEST)) > 1
 #error Select only one hardware test mode.
+#elif defined(AIM_TEST)
+  vexcodeInit();
+  if(Competition.isFieldControl() || Competition.isCompetitionSwitch()){
+    printf("Aim test: disconnect field control or the competition switch before testing.\n");
+    Brain.Screen.printAt(10, 30, true, "Aim test: disconnect field control.");
+    return 1;
+  }
+  // Driver mode unmasks the controller; no motor callbacks are registered, and
+  // assistDrive() only displays its output in this build.
+  Competition.test_driver();
+  printf("Aim test: motor-free; hold Up (cup) or Down (goal).\n");
+  Brain.Screen.render();
+  assistReset();
+  while(true){
+    assistDrive();
+    wait(20, msec);
+  }
 #elif defined(AI_VISION_TEST)
   vexcodeInit();
   if(Competition.isFieldControl() || Competition.isCompetitionSwitch()){

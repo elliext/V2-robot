@@ -83,7 +83,15 @@ struct autoCalibration {
   }
 };
 #endif
+
+vex::mutex& sensorMutex() {
+  static vex::mutex mutex;
+  return mutex;
 }
+}
+
+AIVisionLock::AIVisionLock() { sensorMutex().lock(); }
+AIVisionLock::~AIVisionLock() { sensorMutex().unlock(); }
 
 void updateAIVisionDisplay() {
   static timer refreshTimer;
@@ -111,6 +119,7 @@ void updateAIVisionDisplay() {
   firstUpdate = false;
   refreshTimer.reset();
 
+  AIVisionLock sensorLock;
   if (!AIVision.installed()) {
     configured = false;
     focalLengthPixels = 0;

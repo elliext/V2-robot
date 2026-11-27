@@ -43,6 +43,11 @@ public:
 };
 
 class motor_group : public motor {};
+class mutex {
+public:
+  void lock() {}
+  void unlock() {}
+};
 class optical {
 public:
   bool connected = true;

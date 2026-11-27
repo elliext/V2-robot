@@ -1,5 +1,6 @@
 #include "vex.h"
 #include "Drivetrain.h"
+#include "AssistDrive.h"
 
 using namespace vex;
 
@@ -64,6 +65,10 @@ void arcadeDrive(){
   if (fabs(steeringInput) < 5){
     steeringInput = 0;
   }
+  driveInputs(forwardInput, steeringInput);
+}
+
+void driveInputs(double forwardInput, double steeringInput){
   const double magnitude = fmin(100, sqrt(forwardInput * forwardInput +
                                          steeringInput * steeringInput));
   const double angleDegrees = magnitude == 0 ? 0 :
@@ -77,8 +82,12 @@ int drivetrainTask(void* competition){
   auto& competitionState = *static_cast<vex::competition*>(competition);
   requestedSpeed = 0;
   requestedAngle = 0;
+  assistReset();
   while(competitionState.isEnabled() && competitionState.isDriverControl()){
-    arcadeDrive();
+    // The assist owns the drivetrain while it is aiming or approaching.
+    if(!assistDrive()){
+      arcadeDrive();
+    }
     wait(20, msec);
   }
   return 0;
