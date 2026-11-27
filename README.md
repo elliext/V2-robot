@@ -40,6 +40,79 @@ controls.
 
 ## Current Status
 
+### Initial Match Setup: Alliance and Wing
+
+At program startup, select the match configuration on the controller once,
+before autonomous or driver control:
+
+- **Up:** select **Red** alliance; **Down:** select **Blue** alliance.
+- **R1:** select **Right** wing; **L1:** select **Left** wing, viewed from our alliance station looking
+  into the field.
+- **A:** confirm. Controller line 3 shows the alliance and wing,
+  for example `Setup Red Left`, then `Set Blue Right` after confirmation.
+- **Left/Right directional arrows:** unused. Routine-number selection is
+  removed for now.
+
+Release **A** after launching the program, then press it again to confirm.
+Selection redraws are batched and padded instead of clearing the line.
+Console messages beginning with `Match setup:` report initial selection,
+changes, and confirmation to help diagnose controller input.
+
+The initial configuration is Red, Left. The selected `redAlliance`
+and `isRight` booleans in [include/match-setup.h](include/match-setup.h)
+are shared match settings available to autonomous and driver-control code.
+`selectMatchSetup()` in [src/match-setup.cpp](src/match-setup.cpp) is called
+from the VEX template's `pre_auton()` startup function, not from either
+competition-phase callback. Restart the program to configure the next match.
+This is manual pre-match configuration,
+not automatic sensor-based detection.
+
+For match-setup-only hardware testing, connect a powered Brain and controller.
+Startup reports a missing inertial sensor and skips calibration; neither the
+inertial nor AI Vision sensor is required to select the alliance and wing.
+Autonomous turns still require the inertial sensor on port 1. Disconnect motor
+Smart Cables for this test: existing startup powers the claw after **A** confirms.
+A one-off download to slot 4 can be used without changing the normal slot 1
+project setting.
+
+For an isolated motor-free match setup test, build with
+`DEFINES="-DVexV5 -DMATCH_SETUP_TEST"` and a separate output directory,
+for example `make all BUILD=build/match-setup-test P=Match-setup-test
+DEFINES="-DVexV5 -DMATCH_SETUP_TEST"` using the installed VEX SDK/toolchain.
+This test entry point refuses field-control/competition-switch connections,
+enables driver input, and runs match setup without registering competition
+callbacks or running normal pre-autonomous motor initialization. **A** only
+confirms selection; it does not start the claw. Restart the test program to
+select again. Download this separate binary to slot 4; normal builds omit the
+flag and retain the competition program.
+
+Normal autonomous always runs the shared score-and-toggle routine in
+[src/autonomos.cpp](src/autonomos.cpp). There is no routine-number dispatcher.
+Normal startup confirms alliance and wing before registering motor-control
+competition callbacks, so the path cannot start with an unconfirmed selection.
+The wing, not the alliance color, determines turn directions:
+
+| Wing | Turn after scoring | Passive-toggle turn | Final turn |
+|---|---|---|---|
+| Left (`isRight == false`) | +60 degrees | -82 degrees | -42.5 degrees |
+| Right (`isRight == true`) | -60 degrees | +82 degrees | +42.5 degrees |
+
+All driving distances, speeds, tolerances, and mechanism actions are shared.
+The final turn is intentionally mirrored, unlike the former routines, which
+both ended with -42.5 degrees. Right is provisionally assigned the former
+routine 0 path; change `turnDirection` in `scoreAndToggleWing()` if field
+testing shows the wing mapping is reversed. Verify both paths on the physical
+field before competition. The former numbered diagnostic routines and empty
+routine slots are no longer selectable.
+Alliance color still selects the target color for active toggles.
+
+`make test` also runs [tests/AutonTest.cpp](tests/AutonTest.cpp) against the
+actual match setup and autonomous code with fake controller inputs and motors.
+It checks all four alliance/wing configurations, ignored Left/Right directional
+arrows, confirmation text without a routine number, exact mirrored turns and unchanged drive/PID/mechanism
+commands, and alliance forwarding to the active toggle. These host tests do not
+verify physical field geometry or download anything to the robot.
+
 ### AI Vision Sensor: Detection and Approximate Distance Display
 
 The AI Vision Sensor is configured on **Brain Smart Port 6**. Connect it to the
@@ -49,7 +122,7 @@ detection.
 
 This display enables **pre-trained AI model detection only**. It shows
 detected class names, IDs, confidence scores, and center coordinates on the
-Brain screen during autonomous selection and after pre-autonomous setup.
+Brain screen during initial match setup and after pre-autonomous setup.
 It does not steer, approach objects, change autonomous routines, or assign an
 assist button. Existing controller optical readouts and driver controls remain
 unchanged; **L1 already controls the arm**.
@@ -192,7 +265,7 @@ accidental inclusion in future commits.
 
 The source files, headers, and build files were copied from the team's
 `for_now_use_this` project. They include device definitions, pre-autonomous
-initialization, autonomous selection and routines, PID movement, and separate
+initialization, match setup and autonomous routines, PID movement, and separate
 driver-control tasks for the drivetrain, arm, claw, and toggle.
 
 **Hardware adaptation is in progress.** The code now configures four drivetrain
@@ -225,7 +298,7 @@ The passive-toggle optical-sensor example remains commented out and inactive.
 Driver Button X control remains manual and does not use the optical sensors.
 Button A no longer activates the arm's -30/+30-degree preset; the arm's existing
 manual controls and position holding remain in place. A still confirms the
-autonomous selection during pre-autonomous setup.
+match configuration during initial setup.
 
 ## Optical Sensor Controller Display
 
@@ -241,25 +314,35 @@ R H:220.0 Near:N
 and `Near:N` means it does not. A disconnected sensor shows `sensor missing`
 instead of a numeric reading. Hue is most useful when an object is nearby.
 
-Readings refresh approximately every 100 ms during autonomous selection and,
+Readings refresh approximately every 100 ms during initial match setup and,
 after pre-autonomous setup finishes, while disabled, in autonomous, and in
-driver control. Line 3 remains reserved for the autonomous number and alliance
-color. The display only reads the sensors; it does not change motor control or
+driver control. Line 3 remains reserved for the alliance
+color and wing. The display only reads the sensors; it does not change motor control or
 sensor lighting.
 
-## Active Toggle Autonomous Test
+Optical lines are written only when their displayed text changes, without
+clearing first. Disconnected sensors still show `sensor missing`, but the same
+message is not repeatedly cleared and rewritten.
+
+`make test` includes [tests/OpticalDisplayTest.cpp](tests/OpticalDisplayTest.cpp)
+to check change-only rendering, the 100 ms refresh boundary, reconnection,
+preservation of selection line 3, and the absence of display-driven motor commands.
+Match setup tests also cover release-before-confirm and batched, non-clearing redraws.
+
+## Active Toggle Autonomous Helper
 
 - **Left optical sensor (`toggleOptical2`):** Brain port **15**, controls the left toggle motor on
   port **13**.
 - **Right optical sensor (`toggleOptical1`):** Brain port **5**, controls the right toggle motor on
   port **3**.
-- During pre-autonomous selection, use **Left/Right** to choose routine **6**,
-  **Up** to select **Red**, or **Down** to select **Blue**, then **A** to confirm.
-  The controller displays both the routine and color. The default color is Red.
+- During initial match setup, use **Up** to select **Red**, or **Down**
+  to select **Blue**, then **A** to confirm.
+  The controller displays the alliance and wing. The default color is Red.
   Color selection affects the active toggle only; it does not mirror existing
   autonomous routes.
-- Position the robot at the toggles before starting autonomous. Routine 6 does
-  not drive into position or run the other autonomous sequences.
+- The former routine 6 test is no longer selectable. To use this helper, call
+  `activeToggle()` from autonomous code after positioning the robot at the
+  toggles and stopping the drivetrain.
 - Each toggle runs independently in reverse at **100%** until its sensor
   detects a nearby object of the selected color. It keeps turning when no object
   is detected; the autonomous timeout or releasing the driver button stops it.
@@ -276,8 +359,8 @@ hue from 18 through 60. The display labels these colors R, B, Y, or ?.
 Verify detection under competition lighting
 and tune the hue thresholds and `TIMEOUT_MS` in [src/Toggle.cpp](src/Toggle.cpp)
 on the robot. Coast allows momentum to move the mechanism after motor power is
-removed; test the 100% setting carefully. Existing routines 0 through 5 do not
-automatically invoke the active toggle.
+removed; test the 100% setting carefully. The shared score-and-toggle autonomous
+path uses passive toggles and does not automatically invoke the active toggle.
 
 ### Calling the Active Toggle from an Autonomous Routine
 
@@ -294,7 +377,7 @@ current competition state. It blocks until both toggles reach the target color
 or the 3-second timeout ends. It returns `true` on success and `false` on a
 timeout, sensor failure, or an invalid/ended autonomous mode, so the routine can
 avoid continuing after a failure. Position the robot at the toggles and stop
-drivetrain motion before calling it. Autonomous option 6 uses this same call.
+drivetrain motion before calling it.
 
 ## Getting Started
 
@@ -349,7 +432,8 @@ action before that verification.
 | [include/robot-config.h](include/robot-config.h) | Device declarations shared by the robot code. |
 | [include/vex.h](include/vex.h) | VEX SDK includes and common macros. |
 | [src/Drivetrain.cpp](src/Drivetrain.cpp) and [src/PID.cpp](src/PID.cpp) | Joystick driving and PID-based movement. |
-| [src/auton-selector.cpp](src/auton-selector.cpp) and [src/autonomos.cpp](src/autonomos.cpp) | Autonomous selection and routines. |
+| [src/match-setup.cpp](src/match-setup.cpp) and [include/match-setup.h](include/match-setup.h) | Initial alliance/wing setup shared by autonomous and driver control. |
+| [src/autonomos.cpp](src/autonomos.cpp) | Autonomous routine using the selected match configuration. |
 | [src/Arm.cpp](src/Arm.cpp), [src/Claw.cpp](src/Claw.cpp), and [src/Toggle.cpp](src/Toggle.cpp) | Original robot mechanism controls to adapt for V2. |
 | [.vscode/](.vscode/) | VEX project settings and C++ editor configuration. |
 | [makefile](makefile) and [vex/](vex/) | Build configuration and rules. |

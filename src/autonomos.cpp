@@ -1,6 +1,6 @@
 #include "vex.h"
 #include "PID.h"
-#include "auton-selector.h"
+#include "match-setup.h"
 #include "autonomos.h"
 #include "Toggle.h"
 
@@ -27,23 +27,26 @@ void scoreAllianceGoal(void) {
   wait(650, msec);
   claw.spinFor(reverse, 600 , msec, 300, rpm);
 }
-void passiveToggleQuadrant1(void) {
+namespace {
+void passiveToggleWing(double turnDirection) {
   drivePID(20, 20, 0.8);
-  turnPID(82, 20, 0.5);
+  turnPID(82 * turnDirection, 20, 0.5);
   drivePID(12, 50, 0.5);
   drivePID(-6, 20, 0.5);
   drivePID(10, 60, 0.5);
   drivePID(-20, 20, 0.5);
-  turnPID(-42.5, 20, 0.3);
+  turnPID(42.5 * turnDirection, 20, 0.3);
 }
-void passiveToggleQuadrant2(void) {
-  drivePID(20, 20, 0.8);
-  turnPID(-82, 20, 0.5);
-  drivePID(12, 50, 0.5);
-  drivePID(-6, 20, 0.5);
-  drivePID(10, 60, 0.5);
-  drivePID(-20, 20, 0.5);
-  turnPID(-42.5, 20, 0.3);
+
+void scoreAndToggleWing() {
+  // Swap the wing sign mapping here if field testing disagrees.
+  const double turnDirection = isRight ? 1.0 : -1.0;
+  scoreAllianceGoal();
+  turnPID(-60 * turnDirection, 20, 2);
+  claw.spinFor(forward, 150, msec, 300, rpm);
+  passiveToggleWing(turnDirection);
+  Arm.stop(brake);
+}
 }
 
 /*---------------------------------------------------------------------------*/
@@ -57,43 +60,5 @@ void passiveToggleQuadrant2(void) {
 /*---------------------------------------------------------------------------*/
 
 void autonomous(void) {
-  switch(autonNumber){
-    case 2:
-      scoreAllianceGoal();
-      turnPID(60, 20, 2);
-      claw.spinFor(forward, 150 , msec, 300, rpm);
-      passiveToggleQuadrant2();
-      Arm.stop(brake);
-    break;
-    case 1:
-      turnPID(-90, 2, 0.5, 3000);
-      //task monitorToggle(monitorToggleCallback);
-      break;
-    case 3:
-      //auton code
-      break;
-    case 4:
-      break;
-    case 5:
-      break;
-    case 6:
-      Drive.stop(brake);
-      if(!activeToggle()){
-        return;
-      }
-      break;
-    case 0:
-      scoreAllianceGoal();
-      turnPID(-60, 20, 2);
-      claw.spinFor(forward, 150 , msec, 300, rpm);
-      passiveToggleQuadrant1();
-      Arm.stop(brake);
-      // drivePID(-25, 25, 0.5);
-      break;
-  }
-  
-
-  // ..........................................................................
-  // Insert autonomous user code here.
-  // ..........................................................................
+  scoreAndToggleWing();
 }

@@ -12,7 +12,7 @@
 
 #include "vex.h"
 #include "autonomos.h"
-#include "auton-selector.h"
+#include "match-setup.h"
 #include "Claw.h"
 #include "Arm.h"
 #include "Drivetrain.h"
@@ -30,7 +30,7 @@ competition Competition;
 /*  You may want to perform some actions before the competition starts.      */
 /*  Do them in the following function.  You must return from this function   */
 /*  or the autonomous and usercontrol tasks will not be started.  This       */
-/*  function is only called once after the V5 has been powered on and        */
+/*  function is only called once each time the program is launched and      */
 /*  not every time that the robot is disabled.                               */
 /*---------------------------------------------------------------------------*/
 
@@ -40,13 +40,18 @@ void pre_auton(void) {
   vexcodeInit();
   updateAIVisionDisplay();
   Arm.setPosition(0,degrees);
-  inertialSensor.calibrate();
-  while(inertialSensor.isCalibrating()==true){
-    wait(15,msec);
+  if(inertialSensor.installed()){
+    inertialSensor.calibrate();
+    while(inertialSensor.isCalibrating()==true){
+      wait(15,msec);
+    }
+  }
+  else{
+    printf("Pre-auton: inertial sensor missing on port 1; skipping calibration. Autonomous turns require this sensor.\n");
   }
   claw.setPosition(0,degrees);
   Controller.rumble("..-");
-  selectAuton();
+  selectMatchSetup();
   claw.spin(forward,50,percent);
   enableToggleLights();
   // All activities that occur before the competition starts
@@ -82,7 +87,9 @@ void usercontrol(void) {
 // Main will set up the competition functions and callbacks.
 //
 int main() {
-#if defined(AI_VISION_TEST)
+#if defined(AI_VISION_TEST) && defined(MATCH_SETUP_TEST)
+#error Select only one hardware test mode.
+#elif defined(AI_VISION_TEST)
   vexcodeInit();
   if(Competition.isFieldControl() || Competition.isCompetitionSwitch()){
     printf("Vision test: disconnect field control or the competition switch before testing.\n");
@@ -106,15 +113,30 @@ int main() {
     renderFault = !rendered;
     wait(20, msec);
   }
+#elif defined(MATCH_SETUP_TEST)
+  vexcodeInit();
+  if(Competition.isFieldControl() || Competition.isCompetitionSwitch()){
+    printf("Match setup test: disconnect field control or the competition switch before testing.\n");
+    Brain.Screen.printAt(10, 30, true, "Match setup test: disconnect field control.");
+    return 1;
+  }
+  // Autonomous mode masks controller input; no motor callbacks are registered here.
+  Competition.test_driver();
+  printf("Match setup test: motor-free; driver input enabled.\n");
+  selectMatchSetup();
+  while(true){
+    updateOpticalDisplay();
+    updateAIVisionDisplay();
+    wait(100, msec);
+  }
 #else
   // Child driver tasks must not survive a competition mode change.
   competition::bStopAllTasksBetweenModes = true;
+  // Confirm alliance and wing before any competition callback can move the robot.
+  pre_auton();
   // Set up callbacks for autonomous and driver control periods.
   Competition.autonomous(autonomous);
   Competition.drivercontrol(usercontrol);
-
-  // Run the pre-autonomous function.
-  pre_auton();
   // Prevent main from exiting with an infinite loop.
   while (true) { 
     updateOpticalDisplay();
