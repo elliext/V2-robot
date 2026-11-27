@@ -13,6 +13,9 @@ endif
 ifneq ($(findstring AUTON_SELECTION_TEST,$(CXX_FLAGS) $(CFLAGS)),)
 BUILD_MODE := $(BUILD_MODE)-selection-test
 endif
+ifneq ($(findstring AIM_TEST,$(CXX_FLAGS) $(CFLAGS)),)
+BUILD_MODE := $(BUILD_MODE)-aim-test
+endif
 ifneq ($(BUILD_MODE),normal)
 ifeq ($(abspath $(BUILD)),$(abspath build))
 $(error Hardware test builds require a separate BUILD directory; normal build/ is reserved for competition code)
@@ -77,9 +80,12 @@ AUTON_TEST_HEADERS = include/auton-selector.h include/autonomos.h include/PID.h 
 OPTICAL_TEST_BINARY = build/tests/optical-display-tests
 OPTICAL_TEST_SOURCES = src/Toggle.cpp tests/OpticalDisplayTest.cpp
 OPTICAL_TEST_HEADERS = include/Toggle.h include/auton-selector.h tests/fakes/vex.h
+AUTOAIM_TEST_BINARY = build/tests/auto-aim-tests
+AUTOAIM_TEST_SOURCES = src/AutoAim.cpp tests/AutoAimTest.cpp
+AUTOAIM_TEST_HEADERS = include/AutoAim.h include/AprilTag.h tests/fakes/vex.h
 
 .PHONY: test
-test: $(TEST_BINARY) $(VISION_TEST_BINARY) $(AUTON_TEST_BINARY) $(OPTICAL_TEST_BINARY)
+test: $(TEST_BINARY) $(VISION_TEST_BINARY) $(AUTON_TEST_BINARY) $(OPTICAL_TEST_BINARY) $(AUTOAIM_TEST_BINARY)
 	@set -e; for test_case in $$("$(TEST_BINARY)" --list); do \
 		"$(TEST_BINARY)" "$$test_case"; \
 	done
@@ -88,6 +94,7 @@ test: $(TEST_BINARY) $(VISION_TEST_BINARY) $(AUTON_TEST_BINARY) $(OPTICAL_TEST_B
 	done
 	@"$(AUTON_TEST_BINARY)"
 	@"$(OPTICAL_TEST_BINARY)"
+	@"$(AUTOAIM_TEST_BINARY)"
 
 $(TEST_BINARY): $(TEST_SOURCES) $(TEST_HEADERS) makefile
 	@mkdir -p "$(@D)"
@@ -104,3 +111,7 @@ $(AUTON_TEST_BINARY): $(AUTON_TEST_SOURCES) $(AUTON_TEST_HEADERS) makefile
 $(OPTICAL_TEST_BINARY): $(OPTICAL_TEST_SOURCES) $(OPTICAL_TEST_HEADERS) makefile
 	@mkdir -p "$(@D)"
 	$(HOST_CXX) -std=c++11 -Wall -Wextra -Werror -Itests/fakes -Iinclude $(OPTICAL_TEST_SOURCES) -o "$@"
+
+$(AUTOAIM_TEST_BINARY): $(AUTOAIM_TEST_SOURCES) $(AUTOAIM_TEST_HEADERS) makefile
+	@mkdir -p "$(@D)"
+	$(HOST_CXX) -std=c++11 -Wall -Wextra -Werror -Itests/fakes -Iinclude $(AUTOAIM_TEST_SOURCES) -o "$@"
