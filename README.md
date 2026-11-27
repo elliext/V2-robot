@@ -40,14 +40,14 @@ controls.
 
 ## Current Status
 
-### AI Vision Sensor: Detection Display
+### AI Vision Sensor: Detection and Approximate Distance Display
 
 The AI Vision Sensor is configured on **Brain Smart Port 6**. Connect it to the
 Brain with a Smart Cable, and connect the Brain to the computer by USB to
 download the program. Direct sensor-to-computer USB is not needed for runtime
 detection.
 
-This first increment enables **pre-trained AI model detection only**. It shows
+This display enables **pre-trained AI model detection only**. It shows
 detected class names, IDs, confidence scores, and center coordinates on the
 Brain screen during autonomous selection and after pre-autonomous setup.
 It does not steer, approach objects, change autonomous routines, or assign an
@@ -59,13 +59,15 @@ In [src/AIVision.cpp](src/AIVision.cpp):
 - `kTargetClassName` is empty by default, so all detected model classes appear.
   Set it to an exact reported class name to filter the display.
 - `kRefreshIntervalMs` controls the display/snapshot interval (default 250 ms).
-- Up to 24 detections are sampled, with up to 6 matching objects displayed.
+- Up to 24 detections are sampled, with up to 3 matching objects displayed.
+  Each object has two rows: detection details, then pixel dimensions and range.
 
 The sensor can recognize only classes in its installed model. Hardware testing
 with the Override model confirmed `Cup` (ID 4) and `RedYellowPin` (ID 2), and
 confirmed that detections clear when the objects leave the view. Other pin
 classes and goals have not yet been verified. No class names or IDs are
-hard-coded as targets. Missing hardware and invalid
+hard-coded as detection filters. Distance estimation supports only the verified
+`Cup` and `RedYellowPin` class names. Missing hardware and invalid
 snapshot counts are reported on the Brain screen and in console output.
 Detection resumes automatically after a detected disconnection and reconnection.
 
@@ -76,6 +78,74 @@ program is not a motor-free test**: pre-autonomous setup and enabled competition
 tasks retain their existing behavior. Keep the robot supported and mechanisms
 clear while testing. Hold-to-center, approach assist, and autonomous integration
 are deferred until recognition and driver preferences are confirmed.
+
+#### Approximate Distance and Calibration
+
+The known cup height is **164.5 mm** and pin length is **165.1 mm**. The larger
+bounding-box dimension is used as apparent length:
+
+```text
+focal length (pixels) = calibration length (pixels) * reference distance (mm)
+                       / known object length (mm)
+distance (mm) = known object length (mm) * focal length (pixels)
+                / apparent length (pixels)
+```
+
+For manual calibration, place exactly one supported cup or pin upright and
+fully visible near the image center, with its long axis parallel to the image
+plane. Measure **812.8 mm (32 inches)** from the lens to the object's center
+plane, not the robot bumper or nearest object surface. Tap **Cal 812.8mm** and
+check for `Cal OK`. Keep it clear of all image edges.
+Change `kCalibrationDistanceMm` in [src/AIVision.cpp](src/AIVision.cpp) for a
+different reference distance; the button and initial instructions follow it.
+
+Calibration lives only in memory. Restart or a detected sensor disconnection
+clears the scale. A held touch calibrates once; release and tap to recalibrate.
+Failed calibration leaves a previous reference unchanged. Missing or ambiguous
+supported objects, invalid sizes, and edge-touching boxes are reported.
+Snapshot errors cancel pending taps. Range is `N/A` before calibration and for
+unsupported classes or invalid/edge-touching boxes.
+
+These are **approximate camera-axis distances**, not ground-plane distances,
+bumper clearances, or guaranteed measurements. Upright or sideways objects
+aligned with an image axis work best. Diagonal orientation, 3D tilt, occlusion,
+detection-box jitter, and the cup's transparent half can bias the estimates.
+Bounding boxes cannot identify or correct these effects.
+
+#### Motor-Free Vision Hardware Test
+
+Build separately using the installed VEX SDK/toolchain:
+
+```sh
+make all BUILD=build/vision-test P=Vision-test DEFINES="-DVexV5 -DAI_VISION_TEST" PRINTF_FLOAT=1
+```
+
+Download only to an explicitly approved spare slot (for example slot 4),
+leaving normal slot 1 settings unchanged. This entry point refuses field-control
+and competition-switch connections. It skips controller selection, optical
+readouts, motor initialization, driver mode, and competition callbacks.
+Without the flag, normal competition behavior remains unchanged.
+Double buffering presents complete frames; presentation failures and recovery
+are logged. The test refreshes once per second for readable data; normal
+builds retain the 250 ms interval.
+
+The test **auto-calibrates once per program start from Cup only**, ignoring
+pin detections for calibration. Hold exactly one upright, fully visible cup
+at the reference distance before starting. Five consecutive valid snapshots
+must have the same long-axis orientation and a maximum pixel length no more
+than 10% above the minimum; their mean sets the scale. Missing, duplicate,
+invalid, or clipped cups and snapshot errors reset progress.
+After success, moving the cup does not recalibrate. Successful manual
+calibration also stops automatic calibration. A disconnection clears the
+scale but does not rearm completed auto-calibration; restart at the reference
+distance or calibrate manually. Normal builds use manual calibration only.
+
+Hardware testing confirmed `Auto Cal OK; rough 32in reference`, with Cup
+approximately 816 mm and RedYellowPin approximately 819 mm. The 32-inch
+reference was only roughly measured, and agreement at the calibration distance
+is not independent validation. Physical accuracy at other distances and poses
+remains unverified. Verify at several measured distances before future motion
+integration; this feature adds no motor commands or controller bindings.
 
 #### AI Vision Unit Tests
 
@@ -91,13 +161,19 @@ The tests compile the actual [AI Vision display code](src/AIVision.cpp) against
 small sensor, timer, and screen fakes in [tests/fakes/vex.h](tests/fakes/vex.h).
 Each case runs in a separate process so the display's static state is isolated.
 
-The 11 cases cover missing hardware, model-only configuration, reported object
+The 19 normal-mode cases cover missing hardware, model-only configuration, reported object
 data, default all-class filtering, rejected object types/nonexistent objects,
-stale-data clearing, the 6-row display limit with 24 detections, invalid snapshot
+stale-data clearing, the 3-object/two-row display limit with 24 detections, invalid snapshot
 counts and recovery, the exact 250 ms refresh boundary, and reconnection.
 The test binary is stored under `build/tests`, separately from the robot build.
+Distance cases check scaled output, sideways boxes, cup/pin dimensions,
+invalid/clipped boxes, ambiguity, touch debouncing and between-snapshot taps,
+disconnect invalidation, and snapshot-fault cancellation.
+The same cases run with `AI_VISION_TEST` and its exact 1000 ms boundary, plus
+three auto-calibration cases covering the five-reading threshold, pin exclusion,
+averaging, instability/progress resets, and one-shot behavior.
 
-These tests replace the motor-free diagnostic build mode. They do not download
+These host tests are separate from the vision-only hardware test. They do not download
 or run anything on the Brain, test motor movement, validate a real AI model, or
 prove physical recognition. The earlier Cup and RedYellowPin results above are
 hardware observations; real-world recognition still requires a hardware test.

@@ -82,6 +82,31 @@ void usercontrol(void) {
 // Main will set up the competition functions and callbacks.
 //
 int main() {
+#if defined(AI_VISION_TEST)
+  vexcodeInit();
+  if(Competition.isFieldControl() || Competition.isCompetitionSwitch()){
+    printf("Vision test: disconnect field control or the competition switch before testing.\n");
+    Brain.Screen.printAt(10, 30, true, "Vision test: disconnect field control.");
+    return 1;
+  }
+  printf("Vision test: motor-free; no controller selection or competition callbacks.\n");
+  bool renderFault = false;
+  if (!Brain.Screen.render()) {
+    printf("Vision test: screen buffering initialization failed.\n");
+    renderFault = true;
+  }
+  while(true){
+    updateAIVisionDisplay();
+    const bool rendered = Brain.Screen.render();
+    if (!rendered && !renderFault) {
+      printf("Vision test: screen frame presentation failed.\n");
+    } else if (rendered && renderFault) {
+      printf("Vision test: screen frame presentation recovered.\n");
+    }
+    renderFault = !rendered;
+    wait(20, msec);
+  }
+#else
   // Child driver tasks must not survive a competition mode change.
   competition::bStopAllTasksBetweenModes = true;
   // Set up callbacks for autonomous and driver control periods.
@@ -96,4 +121,5 @@ int main() {
     updateAIVisionDisplay();
     wait(100, msec);
   }
+#endif
 }

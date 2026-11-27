@@ -33,13 +33,21 @@ HOST_CXX ?= c++
 TEST_BINARY = build/tests/ai-vision-tests
 TEST_SOURCES = src/AIVision.cpp tests/AIVisionTest.cpp
 TEST_HEADERS = include/AIVision.h tests/fakes/vex.h
+VISION_TEST_BINARY = build/tests/ai-vision-slow-tests
 
 .PHONY: test
-test: $(TEST_BINARY)
+test: $(TEST_BINARY) $(VISION_TEST_BINARY)
 	@set -e; for test_case in $$("$(TEST_BINARY)" --list); do \
 		"$(TEST_BINARY)" "$$test_case"; \
+	done
+	@set -e; for test_case in $$("$(VISION_TEST_BINARY)" --list); do \
+		"$(VISION_TEST_BINARY)" "$$test_case"; \
 	done
 
 $(TEST_BINARY): $(TEST_SOURCES) $(TEST_HEADERS) makefile
 	@mkdir -p "$(@D)"
 	$(HOST_CXX) -std=c++11 -Wall -Wextra -Werror -Itests/fakes -Iinclude $(TEST_SOURCES) -o "$@"
+
+$(VISION_TEST_BINARY): $(TEST_SOURCES) $(TEST_HEADERS) makefile
+	@mkdir -p "$(@D)"
+	$(HOST_CXX) -std=c++11 -Wall -Wextra -Werror -DAI_VISION_TEST -Itests/fakes -Iinclude $(TEST_SOURCES) -o "$@"
