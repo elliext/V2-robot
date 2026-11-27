@@ -12,7 +12,7 @@
 
 #include "vex.h"
 #include "autonomos.h"
-#include "match-setup.h"
+#include "auton-selector.h"
 #include "Claw.h"
 #include "Arm.h"
 #include "Drivetrain.h"
@@ -51,7 +51,7 @@ void pre_auton(void) {
   }
   claw.setPosition(0,degrees);
   Controller.rumble("..-");
-  selectMatchSetup();
+  selectAuton();
   claw.spin(forward,50,percent);
   enableToggleLights();
   // All activities that occur before the competition starts
@@ -87,7 +87,7 @@ void usercontrol(void) {
 // Main will set up the competition functions and callbacks.
 //
 int main() {
-#if defined(AI_VISION_TEST) && defined(MATCH_SETUP_TEST)
+#if defined(AI_VISION_TEST) && defined(AUTON_SELECTION_TEST)
 #error Select only one hardware test mode.
 #elif defined(AI_VISION_TEST)
   vexcodeInit();
@@ -113,17 +113,17 @@ int main() {
     renderFault = !rendered;
     wait(20, msec);
   }
-#elif defined(MATCH_SETUP_TEST)
+#elif defined(AUTON_SELECTION_TEST)
   vexcodeInit();
   if(Competition.isFieldControl() || Competition.isCompetitionSwitch()){
-    printf("Match setup test: disconnect field control or the competition switch before testing.\n");
-    Brain.Screen.printAt(10, 30, true, "Match setup test: disconnect field control.");
+    printf("Selection test: disconnect field control or the competition switch before testing.\n");
+    Brain.Screen.printAt(10, 30, true, "Selection test: disconnect field control.");
     return 1;
   }
   // Autonomous mode masks controller input; no motor callbacks are registered here.
   Competition.test_driver();
-  printf("Match setup test: motor-free; driver input enabled.\n");
-  selectMatchSetup();
+  printf("Selection test: motor-free; driver input enabled.\n");
+  selectAuton();
   while(true){
     updateOpticalDisplay();
     updateAIVisionDisplay();
@@ -132,7 +132,7 @@ int main() {
 #else
   // Child driver tasks must not survive a competition mode change.
   competition::bStopAllTasksBetweenModes = true;
-  // Confirm alliance and wing before any competition callback can move the robot.
+  // Confirm wing and alliance before any competition callback can move the robot.
   pre_auton();
   // Set up callbacks for autonomous and driver control periods.
   Competition.autonomous(autonomous);

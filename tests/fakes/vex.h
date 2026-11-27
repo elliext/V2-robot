@@ -58,8 +58,10 @@ public:
 class inertial {};
 class competition {
 public:
-  bool isEnabled() const { return false; }
-  bool isAutonomous() const { return false; }
+  bool enabled = false;
+  bool autonomous = false;
+  bool isEnabled() const { return enabled; }
+  bool isAutonomous() const { return autonomous; }
   bool isDriverControl() const { return false; }
 };
 

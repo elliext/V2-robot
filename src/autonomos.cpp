@@ -1,6 +1,6 @@
 #include "vex.h"
 #include "PID.h"
-#include "match-setup.h"
+#include "auton-selector.h"
 #include "autonomos.h"
 #include "Toggle.h"
 
@@ -20,33 +20,47 @@ void pickUpPin(void) {
   
 }
 
-void scoreAllianceGoal(void) {
+void scoreLeftAllianceGoal(void) {
   pickUpPin();
   drivePID(-10, 20, 1);
   Arm.spin(forward, 85, percent);
   wait(650, msec);
   claw.spinFor(reverse, 600 , msec, 300, rpm);
 }
-namespace {
-void passiveToggleWing(double turnDirection) {
+
+void scoreRightAllianceGoal(void) {
+  pickUpPin();
+  drivePID(-10, 20, 1);
+  Arm.spin(forward, 85, percent);
+  wait(650, msec);
+  claw.spinFor(reverse, 600 , msec, 300, rpm);
+}
+void leftWing(void) {
+  scoreLeftAllianceGoal();
+  turnPID(60, 20, 2);
+  claw.spinFor(forward, 150, msec, 300, rpm);
   drivePID(20, 20, 0.8);
-  turnPID(82 * turnDirection, 20, 0.5);
+  turnPID(-82, 20, 0.5);
   drivePID(12, 50, 0.5);
   drivePID(-6, 20, 0.5);
   drivePID(10, 60, 0.5);
   drivePID(-20, 20, 0.5);
-  turnPID(42.5 * turnDirection, 20, 0.3);
-}
-
-void scoreAndToggleWing() {
-  // Swap the wing sign mapping here if field testing disagrees.
-  const double turnDirection = isRight ? 1.0 : -1.0;
-  scoreAllianceGoal();
-  turnPID(-60 * turnDirection, 20, 2);
-  claw.spinFor(forward, 150, msec, 300, rpm);
-  passiveToggleWing(turnDirection);
+  turnPID(-42.5, 20, 0.3);
   Arm.stop(brake);
 }
+
+void rightWing(void) {
+  scoreRightAllianceGoal();
+  turnPID(-60, 20, 2);
+  claw.spinFor(forward, 150, msec, 300, rpm);
+  drivePID(20, 20, 0.8);
+  turnPID(82, 20, 0.5);
+  drivePID(12, 50, 0.5);
+  drivePID(-6, 20, 0.5);
+  drivePID(10, 60, 0.5);
+  drivePID(-20, 20, 0.5);
+  turnPID(42.5, 20, 0.3);
+  Arm.stop(brake);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -60,5 +74,17 @@ void scoreAndToggleWing() {
 /*---------------------------------------------------------------------------*/
 
 void autonomous(void) {
-  scoreAndToggleWing();
+  switch(selectedWing) {
+    case AutonWing::Right:
+      rightWing();
+      break;
+    case AutonWing::Left:
+      leftWing();
+      break;
+    default:
+      Drive.stop(brake);
+      printf("Autonomous: invalid wing selection %d.\n", static_cast<int>(selectedWing));
+      Controller.rumble("---");
+      return;
+  }
 }

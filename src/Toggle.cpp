@@ -1,6 +1,6 @@
 #include "vex.h"
 #include "Toggle.h"
-#include "match-setup.h"
+#include "auton-selector.h"
 #include <initializer_list>
 
 using namespace vex;
@@ -11,7 +11,13 @@ constexpr double kLightPowerPct      = 100;   // 100% washes out glossy plastic
 constexpr int    kProximityThreshold = 40;   // 0-255; lower = triggers farther away
 constexpr double kRedLo    = 360, kRedHi    = 24;   // wraps around 0
 constexpr double kYellowLo = 24,  kYellowHi = 70;
-constexpr double kBlueLo   = 100, kBlueHi   = 330;
+constexpr double kBlueLo   = 100, kBlueHi   = 350;
+constexpr int kTargetStableMs = 100;
+
+struct activeSideState {
+  bool trackingTarget = false;
+  timer targetTimer;
+};
 
 
 bool isRed(double h)    { return h >= kRedLo || h <= kRedHi; }
@@ -47,17 +53,18 @@ void showOpticalSensor(optical& sensor, int line, const char* side, char* previo
 
 
 bool updateActiveSide(motor& toggleMotor, optical& sensor, bool redAlliance,
-                      bool completed){
-  if(completed){
-    toggleMotor.stop(coast);
-    return true;
-  }
+                      activeSideState& state){
   const double hue = sensor.hue();
   const bool targetColor = redAlliance ? isRed(hue) : isBlue(hue);
   if(sensor.isNearObject() && targetColor){
-    toggleMotor.stop(coast);
-    return true;
+    toggleMotor.stop(brake);
+    if(!state.trackingTarget){
+      state.targetTimer.reset();
+      state.trackingTarget = true;
+    }
+    return state.targetTimer.time(msec) >= kTargetStableMs;
   }
+  state.trackingTarget = false;
   // Keep turning until we SEE our color. Do not pause on proximity flicker;
   // the auton timeout / driver button release is the safety net.
   toggleMotor.spin(reverse,100,percent);
@@ -65,9 +72,9 @@ bool updateActiveSide(motor& toggleMotor, optical& sensor, bool redAlliance,
 }
 
 
-void stopActiveToggle(){
-  toggleLeft.stop(coast);
-  toggleRight.stop(coast);
+void stopActiveToggle(brakeType mode = coast){
+  toggleLeft.stop(mode);
+  toggleRight.stop(mode);
   // LEDs intentionally stay on so the controller readout matches the loop.
 }
 }  // namespace
@@ -118,6 +125,8 @@ bool activeToggle(vex::competition& competitionState, bool redAlliance){
   toggleTimer.reset();
   bool leftCompleted = false;
   bool rightCompleted = false;
+  activeSideState leftState;
+  activeSideState rightState;
   while(competitionState.isEnabled() && competitionState.isAutonomous() &&
         toggleTimer.time(msec) < TIMEOUT_MS){
     if(!toggleOptical1.installed() || !toggleOptical2.installed()){
@@ -127,11 +136,11 @@ bool activeToggle(vex::competition& competitionState, bool redAlliance){
       return false;
     }
     leftCompleted = updateActiveSide(toggleLeft, toggleOptical2,
-                                    redAlliance, leftCompleted);
+                                    redAlliance, leftState);
     rightCompleted = updateActiveSide(toggleRight, toggleOptical1,
-                                     redAlliance, rightCompleted);
+                                     redAlliance, rightState);
     if(leftCompleted && rightCompleted){
-      stopActiveToggle();
+      stopActiveToggle(brake);
       return true;
     }
     wait(20,msec);
@@ -185,14 +194,14 @@ void passiveToggleing(){
 
 void motorizedToggleing(bool resetHold){
   static bool opticalActive = false;
-  static bool leftCompleted = false;
-  static bool rightCompleted = false;
+  static activeSideState leftState;
+  static activeSideState rightState;
   static bool sensorFault = false;
   if(resetHold || !Controller.ButtonA.pressing() ||
      Controller.ButtonX.pressing()){
     opticalActive = false;
-    leftCompleted = false;
-    rightCompleted = false;
+    leftState.trackingTarget = false;
+    rightState.trackingTarget = false;
     sensorFault = false;
     stopActiveToggle();
   }
@@ -218,10 +227,8 @@ void motorizedToggleing(bool resetHold){
       enableToggleLights();
       opticalActive = true;
     }
-    leftCompleted = updateActiveSide(toggleLeft, toggleOptical2,
-                                    redAlliance, leftCompleted);
-    rightCompleted = updateActiveSide(toggleRight, toggleOptical1,
-                                     redAlliance, rightCompleted);
+    updateActiveSide(toggleLeft, toggleOptical2, redAlliance, leftState);
+    updateActiveSide(toggleRight, toggleOptical1, redAlliance, rightState);
   }
 }
 
