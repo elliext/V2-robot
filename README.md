@@ -128,6 +128,14 @@ Without the flag, normal competition behavior remains unchanged.
 Double buffering presents complete frames; presentation failures and recovery
 are logged. The test refreshes once per second for readable data; normal
 builds retain the 250 ms interval.
+Normal VS Code build/download uses `build/` and slot 1 with neither hardware
+test flag enabled. Host test sources are not part of the robot build.
+The makefile rejects hardware-test flags in the normal `build/` directory;
+test programs must use a separate output directory and an explicitly approved
+spare slot. A build-mode stamp forces robot objects to rebuild when switching
+between normal and hardware-test modes, preventing stale test objects from
+entering a normal binary. The controller receives no separate robot program:
+the program runs on the Brain.
 
 The test **auto-calibrates once per program start from Cup only**, ignoring
 pin detections for calibration. Hold exactly one upright, fully visible cup
