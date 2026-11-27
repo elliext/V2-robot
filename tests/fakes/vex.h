@@ -192,6 +192,15 @@ public:
 
   struct aiobjdesc {};
   static const aiobjdesc ALL_AIOBJS;
+  static const aiobjdesc ALL_TAGS;
+
+  // A tag snapshot overwrites objects, as on the real sensor; the next model
+  // snapshot restores what the test had placed there.
+  std::array<object, 24> tagData;
+  std::array<object, 24> modelData;
+  bool modelSaved = false;
+  int tagSnapshotCalls = 0;
+  int tagSnapshotResult = 0;
 
   bool connected = true;
   bool colorsEnabled = true;
@@ -210,8 +219,23 @@ public:
     ++configurationCalls;
   }
   int takeSnapshot(const aiobjdesc& description, int count) {
+    if (&description == &ALL_TAGS) {
+      ++tagSnapshotCalls;
+      if (tagSnapshotResult > 0) {
+        if (!modelSaved) {
+          modelData = objects.data;
+          modelSaved = true;
+        }
+        objects.data = tagData;
+      }
+      return tagSnapshotResult;
+    }
     if (&description != &ALL_AIOBJS) {
       throw std::runtime_error("Snapshot did not request AI model objects");
+    }
+    if (modelSaved) {
+      objects.data = modelData;
+      modelSaved = false;
     }
     ++snapshotCalls;
     requestedObjects = count;

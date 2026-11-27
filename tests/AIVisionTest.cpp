@@ -1,6 +1,8 @@
 #include "vex.h"
 #include "AIVision.h"
+#include "AprilTag.h"
 
+#include <initializer_list>
 #include <iostream>
 
 namespace fake {
@@ -8,6 +10,7 @@ int nowMs = 0;
 }
 
 const vex::aivision::aiobjdesc vex::aivision::ALL_AIOBJS;
+const vex::aivision::aiobjdesc vex::aivision::ALL_TAGS;
 vex::brain Brain;
 vex::aivision AIVision;
 
@@ -60,7 +63,7 @@ void missingSensor() {
 void configuration() {
   updateAIVisionDisplay();
   require(AIVision.modelEnabled, "Model detection not enabled");
-  require(!AIVision.colorsEnabled && !AIVision.tagsEnabled, "Other detection modes not disabled");
+  require(!AIVision.colorsEnabled && AIVision.tagsEnabled, "Only model and tag detection must be enabled");
   require(AIVision.requestedObjects == 24, "Snapshot must request 24 objects");
   require(hasText("Filter: ALL model classes"), "Default filter not displayed");
   require(hasText("No matching pre-trained AI objects."), "Empty snapshot not displayed");
@@ -344,6 +347,131 @@ void calibrationSnapshotFault() {
   require(hasText("40x80 px / approx 1626 mm"), "Faulted tap recalibrated on recovery");
 }
 
+vex::aivision::object tag(int id) {
+  vex::aivision::object object;
+  object.id = id;
+  object.type = vex::aivision::objectType::tagObject;
+  object.exists = true;
+  object.centerX = 100 + id;
+  object.centerY = 90;
+  object.width = 30;
+  object.height = 31;
+  return object;
+}
+
+void setTags(std::initializer_list<int> ids) {
+  std::size_t index = 0;
+  for (const int id : ids) {
+    AIVision.tagData[index++] = tag(id);
+  }
+  AIVision.tagSnapshotResult = static_cast<int>(ids.size());
+}
+
+void goalClassification() {
+  const struct {
+    int id;
+    GoalRole role;
+  } expected[] = {
+    {0, GoalRole::Center},
+    {1, GoalRole::Neutral},
+    {2, GoalRole::Alliance},
+    {3, GoalRole::Alliance},
+    {4, GoalRole::Neutral},
+    {5, GoalRole::Neutral},
+    {6, GoalRole::Alliance},
+    {7, GoalRole::Alliance},
+    {8, GoalRole::Neutral},
+  };
+  for (const auto& row : expected) {
+    GoalRole role;
+    require(classifyGoalTag(row.id, role), "Goal tag rejected");
+    require(role == row.role,
+            "Tag classified as the wrong goal");
+  }
+  GoalRole role;
+  require(!classifyGoalTag(-1, role) && !classifyGoalTag(9, role),
+          "Non-goal tag accepted");
+}
+
+void tagDetection() {
+  setTags({3, 0});
+  GoalTagDetection found[4];
+  require(detectGoalTags(found, 4) == 2, "Both tags not detected");
+  require(AIVision.requestedObjects == 0, "Tag snapshot must not use the model snapshot");
+  require(found[0].tagId == 3 && found[0].role == GoalRole::Alliance,
+          "Tag 3 misclassified");
+  require(found[0].centerX == 103 && found[0].centerY == 90 &&
+          found[0].width == 30 && found[0].height == 31, "Tag geometry not copied");
+  require(found[1].tagId == 0 && found[1].role == GoalRole::Center, "Tag 0 misclassified");
+}
+
+void tagFiltering() {
+  AIVision.tagData[0] = tag(9);
+  AIVision.tagData[1] = tag(2);
+  AIVision.tagData[1].exists = false;
+  AIVision.tagData[2] = tag(1);
+  AIVision.tagData[2].type = vex::aivision::objectType::modelObject;
+  AIVision.tagData[3] = tag(4);
+  AIVision.tagSnapshotResult = 4;
+  GoalTagDetection found[4];
+  require(detectGoalTags(found, 4) == 1 && found[0].tagId == 4,
+          "Unknown, missing or non-tag objects not filtered");
+}
+
+void tagOutputLimit() {
+  setTags({1, 2, 3, 4});
+  GoalTagDetection found[2];
+  require(detectGoalTags(found, 2) == 2 && found[1].tagId == 2, "Output limit exceeded");
+}
+
+void tagSnapshotErrors() {
+  GoalTagDetection found[1];
+  AIVision.tagSnapshotResult = -1;
+  require(detectGoalTags(found, 1) == -1, "Negative tag count accepted");
+  AIVision.tagSnapshotResult = 25;
+  require(detectGoalTags(found, 1) == -1, "Excessive tag count accepted");
+}
+
+void displayTags() {
+  setTags({0, 1, 2, 3, 4});
+  updateAIVisionDisplay();
+  require(hasText("Tags 5: 0=C 1=N 2=A 3=A"), "Tags not displayed");
+  require(AIVision.tagSnapshotCalls == 1 && AIVision.snapshotCalls == 1,
+          "Each refresh needs one model and one tag snapshot");
+  AIVision.tagSnapshotResult = 0;
+  nextFrame();
+  require(hasText("Tags: none"), "Missing tags not reported");
+  AIVision.tagSnapshotResult = -1;
+  nextFrame();
+  require(hasText("Tags: snapshot error"), "Tag snapshot error not displayed");
+}
+
+void displayModelAndTags() {
+  AIVision.objects.data[0] = cup();
+  AIVision.snapshotResult = 1;
+  setTags({2});
+  for (int frame = 0; frame < 2; ++frame) {
+    nextFrame();
+    require(hasText("Cup / 4 / 79 / 152,153"), "Cup lost when tags are also detected");
+    require(hasText("AI Vision P6: 1 detected, 1 matched"), "Tag counted as a model object");
+    require(hasText("Tags 1: 2=A"), "Tag missing next to model object");
+  }
+}
+
+void tagsOnMissingSensor() {
+  AIVision.connected = false;
+  setTags({2});
+  updateAIVisionDisplay();
+  require(AIVision.tagSnapshotCalls == 0, "Missing sensor must not take tag snapshots");
+}
+
+void tagsSkippedOnModelFault() {
+  AIVision.snapshotResult = -1;
+  setTags({2});
+  updateAIVisionDisplay();
+  require(AIVision.tagSnapshotCalls == 0, "Tag snapshot taken after a model snapshot fault");
+}
+
 #if defined(AI_VISION_TEST)
 void automaticCalibration() {
   AIVision.objects.data[0] = cup();
@@ -450,6 +578,15 @@ const testCase tests[] = {
   {"calibration-touch", calibrationTouch},
   {"calibration-disconnect", calibrationDisconnect},
   {"calibration-snapshot-fault", calibrationSnapshotFault},
+  {"goal-classification", goalClassification},
+  {"tag-detection", tagDetection},
+  {"tag-filtering", tagFiltering},
+  {"tag-output-limit", tagOutputLimit},
+  {"tag-snapshot-errors", tagSnapshotErrors},
+  {"display-tags", displayTags},
+  {"display-model-and-tags", displayModelAndTags},
+  {"tags-on-missing-sensor", tagsOnMissingSensor},
+  {"tags-skipped-on-model-fault", tagsSkippedOnModelFault},
 #if defined(AI_VISION_TEST)
   {"automatic-calibration", automaticCalibration},
   {"automatic-stability", automaticStability},
