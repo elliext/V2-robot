@@ -10,8 +10,8 @@ BUILD_MODE := normal
 ifneq ($(findstring AI_VISION_TEST,$(CXX_FLAGS) $(CFLAGS)),)
 BUILD_MODE := vision-test
 endif
-ifneq ($(findstring MATCH_SETUP_TEST,$(CXX_FLAGS) $(CFLAGS)),)
-BUILD_MODE := $(BUILD_MODE)-match-setup-test
+ifneq ($(findstring AUTON_SELECTION_TEST,$(CXX_FLAGS) $(CFLAGS)),)
+BUILD_MODE := $(BUILD_MODE)-selection-test
 endif
 ifneq ($(BUILD_MODE),normal)
 ifeq ($(abspath $(BUILD)),$(abspath build))
@@ -72,11 +72,11 @@ TEST_SOURCES = src/AIVision.cpp tests/AIVisionTest.cpp
 TEST_HEADERS = include/AIVision.h tests/fakes/vex.h
 VISION_TEST_BINARY = build/tests/ai-vision-slow-tests
 AUTON_TEST_BINARY = build/tests/auton-tests
-AUTON_TEST_SOURCES = src/match-setup.cpp src/autonomos.cpp tests/AutonTest.cpp
-AUTON_TEST_HEADERS = include/match-setup.h include/autonomos.h include/PID.h include/Toggle.h include/robot-config.h tests/fakes/vex.h
+AUTON_TEST_SOURCES = src/auton-selector.cpp src/autonomos.cpp tests/AutonTest.cpp
+AUTON_TEST_HEADERS = include/auton-selector.h include/autonomos.h include/PID.h include/Toggle.h include/robot-config.h tests/fakes/vex.h
 OPTICAL_TEST_BINARY = build/tests/optical-display-tests
 OPTICAL_TEST_SOURCES = src/Toggle.cpp tests/OpticalDisplayTest.cpp
-OPTICAL_TEST_HEADERS = include/Toggle.h include/match-setup.h tests/fakes/vex.h
+OPTICAL_TEST_HEADERS = include/Toggle.h include/auton-selector.h tests/fakes/vex.h
 
 .PHONY: test
 test: $(TEST_BINARY) $(VISION_TEST_BINARY) $(AUTON_TEST_BINARY) $(OPTICAL_TEST_BINARY)
