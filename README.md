@@ -44,21 +44,48 @@ controls.
 
 Before autonomous, select the starting configuration on the controller:
 
-- **Left/Right arrows:** select the autonomous routine (0 through 6).
-- **Up/Down arrows:** select Red/Blue alliance.
-- **L1/R1:** select Left/Right wing, viewed from our alliance station looking
+- **Up:** select **Red** alliance; **Down:** select **Blue** alliance.
+- **R1:** select **Right** wing; **L1:** select **Left** wing, viewed from our alliance station looking
   into the field.
-- **A:** confirm. Controller line 3 shows the routine, alliance, and wing,
-  for example `Set 0 Blue Right`.
+- **A:** confirm. Controller line 3 shows the alliance and wing,
+  for example `Set Blue Right`.
+- **Left/Right directional arrows:** unused. Routine-number selection is
+  removed for now.
 
-The initial configuration is routine 1, Red, Left. The selected `redAlliance`
+Release **A** after launching the program, then press it again to confirm.
+Selection redraws are batched and padded instead of clearing the line.
+Console messages beginning with `Auton selector:` report initial selection,
+changes, and confirmation to help diagnose controller input.
+
+The initial configuration is Red, Left. The selected `redAlliance`
 and `isRight` booleans in [include/auton-selector.h](include/auton-selector.h)
 are available to autonomous code. This is manual pre-match configuration,
 not automatic sensor-based detection.
 
-Routine numbers **0 and 2 now run the same shared score-and-toggle routine** in
-[src/autonomos.cpp](src/autonomos.cpp). The wing, not the routine number or
-alliance color, determines turn directions:
+For selection-only hardware testing, connect a powered Brain and controller.
+Startup reports a missing inertial sensor and skips calibration; neither the
+inertial nor AI Vision sensor is required to select the alliance and wing.
+Autonomous turns still require the inertial sensor on port 1. Disconnect motor
+Smart Cables for this test: existing startup powers the claw after **A** confirms.
+A one-off download to slot 4 can be used without changing the normal slot 1
+project setting.
+
+For an isolated motor-free selection test, build with
+`DEFINES="-DVexV5 -DAUTON_SELECTION_TEST"` and a separate output directory,
+for example `make all BUILD=build/selection-test P=Selection-test
+DEFINES="-DVexV5 -DAUTON_SELECTION_TEST"` using the installed VEX SDK/toolchain.
+This test entry point refuses field-control/competition-switch connections,
+enables driver input, and runs the selector without registering competition
+callbacks or running normal pre-autonomous motor initialization. **A** only
+confirms selection; it does not start the claw. Restart the test program to
+select again. Download this separate binary to slot 4; normal builds omit the
+flag and retain the competition program.
+
+Normal autonomous always runs the shared score-and-toggle routine in
+[src/autonomos.cpp](src/autonomos.cpp). There is no routine-number dispatcher.
+Normal startup confirms alliance and wing before registering motor-control
+competition callbacks, so the path cannot start with an unconfirmed selection.
+The wing, not the alliance color, determines turn directions:
 
 | Wing | Turn after scoring | Passive-toggle turn | Final turn |
 |---|---|---|---|
@@ -70,13 +97,14 @@ The final turn is intentionally mirrored, unlike the former routines, which
 both ended with -42.5 degrees. Right is provisionally assigned the former
 routine 0 path; change `turnDirection` in `scoreAndToggleWing()` if field
 testing shows the wing mapping is reversed. Verify both paths on the physical
-field before competition. Other routine numbers retain their existing behavior.
+field before competition. The former numbered diagnostic routines and empty
+routine slots are no longer selectable.
 Alliance color still selects the target color for active toggles.
 
 `make test` also runs [tests/AutonTest.cpp](tests/AutonTest.cpp) against the
 actual selector and autonomous code with fake controller inputs and motors.
-It checks all four alliance/wing configurations, button debouncing, confirmation
-text, both routine aliases, exact mirrored turns and unchanged drive/PID/mechanism
+It checks all four alliance/wing configurations, ignored Left/Right directional
+arrows, confirmation text without a routine number, exact mirrored turns and unchanged drive/PID/mechanism
 commands, and alliance forwarding to the active toggle. These host tests do not
 verify physical field geometry or download anything to the robot.
 
@@ -199,23 +227,33 @@ instead of a numeric reading. Hue is most useful when an object is nearby.
 
 Readings refresh approximately every 100 ms during autonomous selection and,
 after pre-autonomous setup finishes, while disabled, in autonomous, and in
-driver control. Line 3 remains reserved for the autonomous number, alliance
-color, and wing. The display only reads the sensors; it does not change motor control or
+driver control. Line 3 remains reserved for the alliance
+color and wing. The display only reads the sensors; it does not change motor control or
 sensor lighting.
 
-## Active Toggle Autonomous Test
+Optical lines are written only when their displayed text changes, without
+clearing first. Disconnected sensors still show `sensor missing`, but the same
+message is not repeatedly cleared and rewritten.
+
+`make test` includes [tests/OpticalDisplayTest.cpp](tests/OpticalDisplayTest.cpp)
+to check change-only rendering, the 100 ms refresh boundary, reconnection,
+preservation of selection line 3, and the absence of display-driven motor commands.
+Selector tests also cover release-before-confirm and batched, non-clearing redraws.
+
+## Active Toggle Autonomous Helper
 
 - **Left optical sensor (`toggleOptical2`):** Brain port **15**, controls the left toggle motor on
   port **13**.
 - **Right optical sensor (`toggleOptical1`):** Brain port **5**, controls the right toggle motor on
   port **3**.
-- During pre-autonomous selection, use **Left/Right** to choose routine **6**,
-  **Up** to select **Red**, or **Down** to select **Blue**, then **A** to confirm.
-  The controller displays both the routine and color. The default color is Red.
+- During pre-autonomous selection, use **Up** to select **Red**, or **Down**
+  to select **Blue**, then **A** to confirm.
+  The controller displays the alliance and wing. The default color is Red.
   Color selection affects the active toggle only; it does not mirror existing
   autonomous routes.
-- Position the robot at the toggles before starting autonomous. Routine 6 does
-  not drive into position or run the other autonomous sequences.
+- The former routine 6 test is no longer selectable. To use this helper, call
+  `activeToggle()` from autonomous code after positioning the robot at the
+  toggles and stopping the drivetrain.
 - Each toggle runs independently in reverse at **100%** until its sensor
   detects a nearby object of the selected color. It keeps turning when no object
   is detected; the autonomous timeout or releasing the driver button stops it.
@@ -232,8 +270,8 @@ hue from 18 through 60. The display labels these colors R, B, Y, or ?.
 Verify detection under competition lighting
 and tune the hue thresholds and `TIMEOUT_MS` in [src/Toggle.cpp](src/Toggle.cpp)
 on the robot. Coast allows momentum to move the mechanism after motor power is
-removed; test the 100% setting carefully. Existing routines 0 through 5 do not
-automatically invoke the active toggle.
+removed; test the 100% setting carefully. The shared score-and-toggle autonomous
+path uses passive toggles and does not automatically invoke the active toggle.
 
 ### Calling the Active Toggle from an Autonomous Routine
 
@@ -250,7 +288,7 @@ current competition state. It blocks until both toggles reach the target color
 or the 3-second timeout ends. It returns `true` on success and `false` on a
 timeout, sensor failure, or an invalid/ended autonomous mode, so the routine can
 avoid continuing after a failure. Position the robot at the toggles and stop
-drivetrain motion before calling it. Autonomous option 6 uses this same call.
+drivetrain motion before calling it.
 
 ## Getting Started
 

@@ -40,9 +40,14 @@ void pre_auton(void) {
   vexcodeInit();
   updateAIVisionDisplay();
   Arm.setPosition(0,degrees);
-  inertialSensor.calibrate();
-  while(inertialSensor.isCalibrating()==true){
-    wait(15,msec);
+  if(inertialSensor.installed()){
+    inertialSensor.calibrate();
+    while(inertialSensor.isCalibrating()==true){
+      wait(15,msec);
+    }
+  }
+  else{
+    printf("Pre-auton: inertial sensor missing on port 1; skipping calibration. Autonomous turns require this sensor.\n");
   }
   claw.setPosition(0,degrees);
   Controller.rumble("..-");
@@ -82,18 +87,35 @@ void usercontrol(void) {
 // Main will set up the competition functions and callbacks.
 //
 int main() {
+#if defined(AUTON_SELECTION_TEST)
+  vexcodeInit();
+  if(Competition.isFieldControl() || Competition.isCompetitionSwitch()){
+    printf("Selection test: disconnect field control or the competition switch before testing.\n");
+    Brain.Screen.printAt(10, 30, true, "Selection test: disconnect field control.");
+    return 1;
+  }
+  // Autonomous mode masks controller input; no motor callbacks are registered here.
+  Competition.test_driver();
+  printf("Selection test: motor-free; driver input enabled.\n");
+  selectAuton();
+  while(true){
+    updateOpticalDisplay();
+    updateAIVisionDisplay();
+    wait(100, msec);
+  }
+#else
   // Child driver tasks must not survive a competition mode change.
   competition::bStopAllTasksBetweenModes = true;
+  // Confirm alliance and wing before any competition callback can move the robot.
+  pre_auton();
   // Set up callbacks for autonomous and driver control periods.
   Competition.autonomous(autonomous);
   Competition.drivercontrol(usercontrol);
-
-  // Run the pre-autonomous function.
-  pre_auton();
   // Prevent main from exiting with an infinite loop.
   while (true) { 
     updateOpticalDisplay();
     updateAIVisionDisplay();
     wait(100, msec);
   }
+#endif
 }

@@ -36,13 +36,17 @@ TEST_HEADERS = include/AIVision.h tests/fakes/vex.h
 AUTON_TEST_BINARY = build/tests/auton-tests
 AUTON_TEST_SOURCES = src/auton-selector.cpp src/autonomos.cpp tests/AutonTest.cpp
 AUTON_TEST_HEADERS = include/auton-selector.h include/autonomos.h include/PID.h include/Toggle.h include/robot-config.h tests/fakes/vex.h
+OPTICAL_TEST_BINARY = build/tests/optical-display-tests
+OPTICAL_TEST_SOURCES = src/Toggle.cpp tests/OpticalDisplayTest.cpp
+OPTICAL_TEST_HEADERS = include/Toggle.h include/auton-selector.h tests/fakes/vex.h
 
 .PHONY: test
-test: $(TEST_BINARY) $(AUTON_TEST_BINARY)
+test: $(TEST_BINARY) $(AUTON_TEST_BINARY) $(OPTICAL_TEST_BINARY)
 	@set -e; for test_case in $$("$(TEST_BINARY)" --list); do \
 		"$(TEST_BINARY)" "$$test_case"; \
 	done
 	@"$(AUTON_TEST_BINARY)"
+	@"$(OPTICAL_TEST_BINARY)"
 
 $(TEST_BINARY): $(TEST_SOURCES) $(TEST_HEADERS) makefile
 	@mkdir -p "$(@D)"
@@ -51,3 +55,7 @@ $(TEST_BINARY): $(TEST_SOURCES) $(TEST_HEADERS) makefile
 $(AUTON_TEST_BINARY): $(AUTON_TEST_SOURCES) $(AUTON_TEST_HEADERS) makefile
 	@mkdir -p "$(@D)"
 	$(HOST_CXX) -std=c++11 -Wall -Wextra -Werror -Itests/fakes -Iinclude $(AUTON_TEST_SOURCES) -o "$@"
+
+$(OPTICAL_TEST_BINARY): $(OPTICAL_TEST_SOURCES) $(OPTICAL_TEST_HEADERS) makefile
+	@mkdir -p "$(@D)"
+	$(HOST_CXX) -std=c++11 -Wall -Wextra -Werror -Itests/fakes -Iinclude $(OPTICAL_TEST_SOURCES) -o "$@"

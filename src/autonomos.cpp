@@ -39,7 +39,7 @@ void passiveToggleWing(double turnDirection) {
 }
 
 void scoreAndToggleWing() {
-  // Right follows the former routine 0; swap signs here if field testing disagrees.
+  // Swap the wing sign mapping here if field testing disagrees.
   const double turnDirection = isRight ? 1.0 : -1.0;
   scoreAllianceGoal();
   turnPID(-60 * turnDirection, 20, 2);
@@ -60,32 +60,5 @@ void scoreAndToggleWing() {
 /*---------------------------------------------------------------------------*/
 
 void autonomous(void) {
-  switch(autonNumber){
-    case 0:
-    case 2:
-      scoreAndToggleWing();
-    break;
-    case 1:
-      turnPID(-90, 2, 0.5, 3000);
-      //task monitorToggle(monitorToggleCallback);
-      break;
-    case 3:
-      //auton code
-      break;
-    case 4:
-      break;
-    case 5:
-      break;
-    case 6:
-      Drive.stop(brake);
-      if(!activeToggle()){
-        return;
-      }
-      break;
-  }
-  
-
-  // ..........................................................................
-  // Insert autonomous user code here.
-  // ..........................................................................
+  scoreAndToggleWing();
 }

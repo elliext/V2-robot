@@ -27,16 +27,22 @@ const char* colorName(double h){
 }
 
 
-void showOpticalSensor(optical& sensor, int line, const char* side){
-  Controller.Screen.clearLine(line);
-  Controller.Screen.setCursor(line,1);
+void showOpticalSensor(optical& sensor, int line, const char* side, char* previous){
+  char text[64];
   if(!sensor.installed()){
-    Controller.Screen.print("%s: sensor missing", side);
+    snprintf(text, sizeof(text), "%s: sensor missing", side);
+  }
+  else{
+    const double hue = sensor.hue();
+    snprintf(text, sizeof(text), "%s H:%3.0f %s Near:%s", side, hue, colorName(hue),
+             sensor.isNearObject() ? "Y" : "N");
+  }
+  if(strcmp(text, previous)==0){
     return;
   }
-  const double hue = sensor.hue();
-  Controller.Screen.print("%s H:%3.0f %s Near:%s", side, hue, colorName(hue),
-                          sensor.isNearObject() ? "Y" : "N");
+  Controller.Screen.setCursor(line,1);
+  Controller.Screen.print("%-20s", text);
+  strcpy(previous, text);
 }
 
 
@@ -84,13 +90,15 @@ void enableToggleLights(){
 void updateOpticalDisplay(){
   static timer displayTimer;
   static bool firstUpdate = true;
+  static char previousLeft[64] = "";
+  static char previousRight[64] = "";
   if(!firstUpdate && displayTimer.time(msec) < 100){
     return;
   }
   firstUpdate = false;
   displayTimer.reset();
-  showOpticalSensor(toggleOptical2,1,"L");
-  showOpticalSensor(toggleOptical1,2,"R");
+  showOpticalSensor(toggleOptical2,1,"L",previousLeft);
+  showOpticalSensor(toggleOptical1,2,"R",previousRight);
 }
 
 bool activeToggle(vex::competition& competitionState, bool redAlliance){

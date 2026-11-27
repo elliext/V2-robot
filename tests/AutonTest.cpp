@@ -40,8 +40,8 @@ void require(bool condition, const char* message) {
 }
 
 void selectConfiguration(bool red, bool right) {
-  redAlliance = true;
-  isRight = false;
+  redAlliance = !red;
+  isRight = !right;
   Controller = vex::controller();
   inputs.clear();
   inputIndex = 0;
@@ -52,7 +52,7 @@ void selectConfiguration(bool red, bool right) {
   frame.ButtonDown.pressed = !red;
   frame.ButtonL1.pressed = !right;
   frame.ButtonR1.pressed = right;
-  // Hold the number button for multiple updates to check debouncing.
+  // Holding selection buttons must not trigger redundant redraws.
   inputs.push_back(frame);
   inputs.push_back(frame);
   inputs.push_back(vex::controller());
@@ -63,16 +63,18 @@ void selectConfiguration(bool red, bool right) {
   selecting = true;
   selectAuton();
   selecting = false;
-  require(autonNumber == 0, "Held button changed routine more than once");
   require(redAlliance == red && isRight == right, "Incorrect starting configuration");
-  const std::string expected = std::string("Set 0 ") +
+  std::string expected = std::string("Set ") +
       (red ? "Red" : "Blue") + (right ? " Right" : " Left");
+  expected.resize(20, ' ');
   require(Controller.Screen.text == expected, "Confirmation omits configuration");
+  require(Controller.Screen.clearCalls == 0, "Selection redraw clears and flickers");
+  require(Controller.Screen.printCalls == 3, "Selection rendered repeatedly within an update");
+  require(Controller.rumbleCalls == 1, "Confirmation should rumble once");
   require(opticalUpdates == 3 && visionUpdates == 3, "Live displays stopped updating");
 }
 
-void checkRoute(int number, bool red, bool right) {
-  autonNumber = number;
+void checkRoute(bool red, bool right) {
   redAlliance = red;
   isRight = right;
   movements.clear();
@@ -124,7 +126,14 @@ void vex::wait(int duration, vex::timeUnits) {
   fake::nowMs += duration;
   if (selecting) {
     require(++inputIndex < inputs.size(), "Selector did not confirm");
-    Controller = inputs[inputIndex];
+    const auto& frame = inputs[inputIndex];
+    Controller.ButtonA = frame.ButtonA;
+    Controller.ButtonLeft = frame.ButtonLeft;
+    Controller.ButtonRight = frame.ButtonRight;
+    Controller.ButtonUp = frame.ButtonUp;
+    Controller.ButtonDown = frame.ButtonDown;
+    Controller.ButtonL1 = frame.ButtonL1;
+    Controller.ButtonR1 = frame.ButtonR1;
   }
 }
 
@@ -149,15 +158,9 @@ int main() {
     for (bool red : {false, true}) {
       for (bool right : {false, true}) {
         selectConfiguration(red, right);
-        checkRoute(0, red, right);
-        checkRoute(2, red, right);
-        autonNumber = 6;
-        Drive.commands.clear();
-        autonomous();
+        checkRoute(red, right);
+        require(activeToggle(), "Active toggle success was not propagated");
         require(toggleAlliance == red, "Active toggle ignores alliance selection");
-        require(Drive.commands.size() == 1 &&
-                Drive.commands[0].kind == "stop" &&
-                Drive.commands[0].value == vex::brake, "Routine 6 no longer stops drive");
       }
     }
     // Both wing controls must work when changing an existing selection.
@@ -169,16 +172,39 @@ int main() {
     selecting = true;
     selectAuton();
     selecting = false;
-    require(!isRight && autonNumber == 1, "Cannot switch back to Left wing");
-    movements.clear();
-    autonomous();
-    require(movements.size() == 1 && movements[0].turn &&
-            movements[0].target == -90 && movements[0].integral == 2 &&
-            movements[0].tolerance == 0.5 && movements[0].timeout == 3000,
-            "Routine 1 changed");
+    require(!isRight, "Cannot switch back to Left wing");
     toggleResult = false;
     require(!activeToggle(), "Toggle failure was not propagated");
-    std::cout << "PASS autonomous selection, four configurations, mirrored routes, and aliases\n";
+    redAlliance = true;
+    isRight = false;
+    inputs.assign(5, vex::controller());
+    inputs[0].ButtonA.pressed = true;
+    inputs[1].ButtonA.pressed = true;
+    inputs[2].ButtonDown.pressed = true;
+    inputs[2].ButtonR1.pressed = true;
+    inputs[4].ButtonA.pressed = true;
+    Controller = inputs[0];
+    inputIndex = 0;
+    selecting = true;
+    selectAuton();
+    selecting = false;
+    require(inputIndex == 4 && !redAlliance && isRight,
+            "A held at launch confirmed before a new press");
+    require(Controller.Screen.text == "Set Blue Right      ", "Held-A confirmation incorrect");
+
+    inputs.assign(5, vex::controller());
+    inputs[0].ButtonLeft.pressed = inputs[1].ButtonLeft.pressed = true;
+    inputs[2].ButtonRight.pressed = inputs[3].ButtonRight.pressed = true;
+    inputs[4].ButtonA.pressed = true;
+    Controller = inputs[0];
+    inputIndex = 0;
+    selecting = true;
+    selectAuton();
+    selecting = false;
+    require(!redAlliance && isRight, "Unused directional arrows changed configuration");
+    require(Controller.Screen.printCalls == 2, "Unused arrows caused selection redraws");
+    require(Controller.Screen.text == "Set Blue Right      ", "Routine number remains in display");
+    std::cout << "PASS alliance/wing selection, mirrored autonomous, and unused routine arrows\n";
   } catch (const std::exception& error) {
     std::cerr << "FAIL autonomous: " << error.what() << '\n';
     return 1;

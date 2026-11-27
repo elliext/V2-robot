@@ -17,7 +17,8 @@ namespace vex {
 enum timeUnits { msec };
 enum directionType { forward, reverse };
 enum velocityUnits { rpm, percent };
-enum brakeType { hold, brake };
+enum brakeType { hold, brake, coast };
+enum class ledState { on, off };
 
 void wait(int duration, timeUnits);
 
@@ -42,9 +43,25 @@ public:
 };
 
 class motor_group : public motor {};
-class optical {};
+class optical {
+public:
+  bool connected = true;
+  double sampleHue = 0;
+  bool nearby = false;
+  bool installed() const { return connected; }
+  double hue() const { return sampleHue; }
+  bool isNearObject() const { return nearby; }
+  void objectDetectThreshold(int) {}
+  void setLightPower(double, velocityUnits) {}
+  void setLight(ledState) {}
+};
 class inertial {};
-class competition {};
+class competition {
+public:
+  bool isEnabled() const { return false; }
+  bool isAutonomous() const { return false; }
+  bool isDriverControl() const { return false; }
+};
 
 class controller {
 public:
@@ -52,21 +69,29 @@ public:
     bool pressed = false;
     bool pressing() const { return pressed; }
   };
-  button ButtonA, ButtonLeft, ButtonRight, ButtonUp, ButtonDown, ButtonL1, ButtonR1;
+  button ButtonA, ButtonX, ButtonLeft, ButtonRight, ButtonUp, ButtonDown, ButtonL1, ButtonR1;
   struct screen {
     std::string text;
+    int clearCalls = 0;
+    int printCalls = 0;
+    int cursorRow = 3;
+    std::array<std::string, 3> lines;
     void clearLine(int line) {
-      if (line != 3) {
-        throw std::runtime_error("Selector must use controller line 3");
+      if (line < 1 || line > 3) {
+        throw std::runtime_error("Invalid controller line");
       }
       text.clear();
+      lines.at(line - 1).clear();
+      ++clearCalls;
     }
     void setCursor(int row, int column) {
-      if (row != 3 || column != 1) {
-        throw std::runtime_error("Unexpected selector cursor");
+      if (row < 1 || row > 3 || column != 1) {
+        throw std::runtime_error("Unexpected controller cursor");
       }
+      cursorRow = row;
     }
     void print(const char* format, ...) {
+      ++printCalls;
       char buffer[256];
       va_list arguments;
       va_start(arguments, format);
@@ -76,6 +101,7 @@ public:
         throw std::runtime_error("Invalid controller output");
       }
       text = buffer;
+      lines.at(cursorRow - 1) = text;
       if (text.size() > 20) {
         throw std::runtime_error("Selector exceeds controller line width");
       }
@@ -183,3 +209,7 @@ public:
 extern vex::brain Brain;
 extern vex::aivision AIVision;
 extern vex::controller Controller;
+extern vex::motor toggleLeft;
+extern vex::motor toggleRight;
+extern vex::optical toggleOptical1;
+extern vex::optical toggleOptical2;
