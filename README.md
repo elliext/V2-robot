@@ -134,9 +134,11 @@ Brain with a Smart Cable, and connect the Brain to the computer by USB to
 download the program. Direct sensor-to-computer USB is not needed for runtime
 detection.
 
-This display enables **pre-trained AI model detection only**. It shows
-detected class names, IDs, confidence scores, and center coordinates on the
-Brain screen during initial match setup and after pre-autonomous setup.
+This display enables **pre-trained AI model detection and AprilTag detection**
+(color detection stays off). It shows detected class names, IDs, confidence
+scores, and center coordinates on the Brain screen during initial match setup
+and after pre-autonomous setup. See [AprilTag Goal Detection](#apriltag-goal-detection)
+for the tag line.
 It does not steer, approach objects, change autonomous paths, or assign an
 assist button. Existing controller optical readouts and driver controls remain
 unchanged; **L1 already controls the arm**.
@@ -166,6 +168,31 @@ program is not a motor-free test**: pre-autonomous setup and enabled competition
 tasks retain their existing behavior. Keep the robot supported and mechanisms
 clear while testing. Hold-to-center, approach assist, and autonomous integration
 are deferred until recognition and driver preferences are confirmed.
+
+#### AprilTag Goal Detection
+
+[src/AprilTag.cpp](src/AprilTag.cpp) identifies goals from their AprilTags
+using the field facts in [knowledge/field-setup.md](knowledge/field-setup.md):
+
+| Tag | Goal | Quadrant number |
+|---|---|---|
+| 0 | Center | n/a |
+| 1 | Neutral | 1 (Red 1 / Blue 1) |
+| 2 | Alliance | 1 (Red 1 / Blue 1) |
+| 3 | Alliance | 2 (Red 2 / Blue 2) |
+| 4 | Neutral | 2 (Red 2 / Blue 2) |
+
+Tags 1-4 repeat on both alliances, so a tag gives the goal's role and quadrant
+number but not its alliance. `goalQuadrantName()` turns a tag into a quadrant
+name only when the caller supplies the alliance. `detectGoalTags()` takes a tag
+snapshot, ignores unknown IDs and missing or non-tag objects, and returns the tag
+ID, role, quadrant number, center, and size. It overwrites `AIVision.objects`,
+so the display reads model objects first. Autonomous code does not use it yet.
+
+Footer line of the display: `Tags 3: 0=C 1=N1 2=A1` (`C` center, `A` alliance,
+`N` neutral, followed by the quadrant number), `Tags: none`, or
+`Tags: snapshot error`. It replaces the earlier tilt/occlusion note. Tilt and
+occlusion still make the Cup/pin distance approximate.
 
 #### Distance Calibration (Display Only)
 
@@ -271,14 +298,16 @@ The tests compile the actual [AI Vision display code](src/AIVision.cpp) against
 small sensor, timer, and screen fakes in [tests/fakes/vex.h](tests/fakes/vex.h).
 Each case runs in a separate process so the display's static state is isolated.
 
-The 19 cases cover missing hardware, model-only configuration, reported object
+The 29 cases cover missing hardware, model and tag configuration, reported object
 data, default all-class filtering, rejected object types/nonexistent objects,
 stale-data clearing, the 3-object/two-row display limit with 24 detections,
 invalid snapshot counts and recovery, the exact 250 ms refresh boundary,
 and reconnection. Distance cases check exact reference/scaled output, sideways
 boxes, cup versus pin dimensions, invalid/clipped boxes, calibration ambiguity,
 touch debouncing and taps between snapshots, disconnect invalidation, and
-snapshot-fault cancellation.
+snapshot-fault cancellation. Ten AprilTag cases cover the tag table, quadrant
+names, geometry, filtering, output limits, snapshot errors, and the combined
+model-and-tag display.
 The same cases also run with `AI_VISION_TEST` and its exact 1000 ms refresh
 boundary, plus three auto-calibration cases covering the five-sample threshold,
 pin exclusion, averaging, instability/progress resets, and one-shot behavior.
@@ -469,6 +498,7 @@ action before that verification.
 | [src/Drivetrain.cpp](src/Drivetrain.cpp) and [src/PID.cpp](src/PID.cpp) | Joystick driving and PID-based movement. |
 | [src/auton-selector.cpp](src/auton-selector.cpp) and [include/auton-selector.h](include/auton-selector.h) | Initial alliance and wing selection; shared settings for autonomous and driver control. |
 | [src/autonomos.cpp](src/autonomos.cpp) | Autonomous path using the selected match configuration. |
+| [src/AIVision.cpp](src/AIVision.cpp) and [src/AprilTag.cpp](src/AprilTag.cpp) | AI Vision display and AprilTag goal identification. |
 | [src/Arm.cpp](src/Arm.cpp), [src/Claw.cpp](src/Claw.cpp), and [src/Toggle.cpp](src/Toggle.cpp) | Original robot mechanism controls to adapt for V2. |
 | [.vscode/](.vscode/) | VEX project settings and C++ editor configuration. |
 | [makefile](makefile) and [vex/](vex/) | Build configuration and rules. |

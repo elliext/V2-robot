@@ -1,5 +1,6 @@
 #include "vex.h"
 #include "AIVision.h"
+#include "AprilTag.h"
 
 using namespace vex;
 
@@ -11,6 +12,7 @@ constexpr int kRefreshIntervalMs = 250;
 #endif
 constexpr int kSnapshotObjects = 24;
 constexpr int kDisplayObjects = 3;
+constexpr int kDisplayTags = 4;
 constexpr double kCalibrationDistanceMm = 812.8;
 constexpr int kImageWidth = 320;
 constexpr int kImageHeight = 240;
@@ -130,10 +132,10 @@ void updateAIVisionDisplay() {
   missingReported = false;
   if (!configured) {
     AIVision.colorDetection(false);
-    AIVision.tagDetection(false);
+    AIVision.tagDetection(true);
     AIVision.modelDetection(true);
     configured = true;
-    printf("AI Vision: sensor connected on port 6; model detection enabled.\n");
+    printf("AI Vision: sensor connected on port 6; model and AprilTag detection enabled.\n");
   }
 
   const int count = AIVision.takeSnapshot(aivision::ALL_AIOBJS, kSnapshotObjects);
@@ -280,6 +282,26 @@ void updateAIVisionDisplay() {
   if (matches == 0) {
     Brain.Screen.printAt(10, 96, true, "No matching pre-trained AI objects.");
   }
-  Brain.Screen.printAt(10, 208, true, "Tilt/occlusion affect range; not ground range");
+  // Must follow every model-object read: the tag snapshot overwrites AIVision.objects.
+  GoalTagDetection tags[24];
+  const int tagCount = detectGoalTags(tags, 24);
+  if (tagCount < 0) {
+    Brain.Screen.printAt(10, 208, true, "Tags: snapshot error");
+  } else if (tagCount == 0) {
+    Brain.Screen.printAt(10, 208, true, "Tags: none");
+  } else {
+    char line[64];
+    int length = snprintf(line, sizeof(line), "Tags %d:", tagCount);
+    for (int i = 0; i < tagCount && i < kDisplayTags; ++i) {
+      const GoalTag& goal = tags[i].goal;
+      if (goal.role == GoalRole::Center) {
+        length += snprintf(line + length, sizeof(line) - length, " %d=C", tags[i].tagId);
+      } else {
+        length += snprintf(line + length, sizeof(line) - length, " %d=%c%d", tags[i].tagId,
+                           goal.role == GoalRole::Alliance ? 'A' : 'N', goal.quadrantNumber);
+      }
+    }
+    Brain.Screen.printAt(10, 208, true, "%s", line);
+  }
   Brain.Screen.printAt(10, 228, true, "Showing %d/%d matches; display only", displayed, matches);
 }

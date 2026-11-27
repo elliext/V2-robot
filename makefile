@@ -68,8 +68,8 @@ endif
 
 HOST_CXX ?= c++
 TEST_BINARY = build/tests/ai-vision-tests
-TEST_SOURCES = src/AIVision.cpp tests/AIVisionTest.cpp
-TEST_HEADERS = include/AIVision.h tests/fakes/vex.h
+TEST_SOURCES = src/AIVision.cpp src/AprilTag.cpp tests/AIVisionTest.cpp
+TEST_HEADERS = include/AIVision.h include/AprilTag.h tests/fakes/vex.h
 VISION_TEST_BINARY = build/tests/ai-vision-slow-tests
 AUTON_TEST_BINARY = build/tests/auton-tests
 AUTON_TEST_SOURCES = src/auton-selector.cpp src/autonomos.cpp tests/AutonTest.cpp
