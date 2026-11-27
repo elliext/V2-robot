@@ -371,39 +371,26 @@ void goalClassification() {
   const struct {
     int id;
     GoalRole role;
-    int quadrant;
   } expected[] = {
-    {0, GoalRole::Center, 0},
-    {1, GoalRole::Neutral, 1},
-    {2, GoalRole::Alliance, 1},
-    {3, GoalRole::Alliance, 2},
-    {4, GoalRole::Neutral, 2},
-    {5, GoalRole::Neutral, 1},
-    {6, GoalRole::Alliance, 1},
-    {7, GoalRole::Alliance, 2},
-    {8, GoalRole::Neutral, 2},
+    {0, GoalRole::Center},
+    {1, GoalRole::Neutral},
+    {2, GoalRole::Alliance},
+    {3, GoalRole::Alliance},
+    {4, GoalRole::Neutral},
+    {5, GoalRole::Neutral},
+    {6, GoalRole::Alliance},
+    {7, GoalRole::Alliance},
+    {8, GoalRole::Neutral},
   };
   for (const auto& row : expected) {
-    GoalTag goal;
-    require(classifyGoalTag(row.id, goal), "Goal tag rejected");
-    require(goal.role == row.role && goal.quadrantNumber == row.quadrant,
+    GoalRole role;
+    require(classifyGoalTag(row.id, role), "Goal tag rejected");
+    require(role == row.role,
             "Tag classified as the wrong goal");
   }
-  GoalTag goal;
-  require(!classifyGoalTag(-1, goal) && !classifyGoalTag(9, goal),
+  GoalRole role;
+  require(!classifyGoalTag(-1, role) && !classifyGoalTag(9, role),
           "Non-goal tag accepted");
-}
-
-void goalQuadrantNames() {
-  GoalTag goal;
-  classifyGoalTag(2, goal);
-  require(std::strcmp(goalQuadrantName(goal, true), "Red 1") == 0, "Tag 2 is Red 1");
-  require(std::strcmp(goalQuadrantName(goal, false), "Blue 1") == 0, "Tag 2 is Blue 1");
-  classifyGoalTag(4, goal);
-  require(std::strcmp(goalQuadrantName(goal, true), "Red 2") == 0, "Tag 4 is Red 2");
-  require(std::strcmp(goalQuadrantName(goal, false), "Blue 2") == 0, "Tag 4 is Blue 2");
-  classifyGoalTag(0, goal);
-  require(std::strcmp(goalQuadrantName(goal, true), "Center") == 0, "Tag 0 is the center");
 }
 
 void tagDetection() {
@@ -411,11 +398,11 @@ void tagDetection() {
   GoalTagDetection found[4];
   require(detectGoalTags(found, 4) == 2, "Both tags not detected");
   require(AIVision.requestedObjects == 0, "Tag snapshot must not use the model snapshot");
-  require(found[0].tagId == 3 && found[0].goal.role == GoalRole::Alliance &&
-          found[0].goal.quadrantNumber == 2, "Tag 3 misclassified");
+  require(found[0].tagId == 3 && found[0].role == GoalRole::Alliance,
+          "Tag 3 misclassified");
   require(found[0].centerX == 103 && found[0].centerY == 90 &&
           found[0].width == 30 && found[0].height == 31, "Tag geometry not copied");
-  require(found[1].tagId == 0 && found[1].goal.role == GoalRole::Center, "Tag 0 misclassified");
+  require(found[1].tagId == 0 && found[1].role == GoalRole::Center, "Tag 0 misclassified");
 }
 
 void tagFiltering() {
@@ -448,7 +435,7 @@ void tagSnapshotErrors() {
 void displayTags() {
   setTags({0, 1, 2, 3, 4});
   updateAIVisionDisplay();
-  require(hasText("Tags 5: 0=C 1=N1 2=A1 3=A2"), "Tags not displayed");
+  require(hasText("Tags 5: 0=C 1=N 2=A 3=A"), "Tags not displayed");
   require(AIVision.tagSnapshotCalls == 1 && AIVision.snapshotCalls == 1,
           "Each refresh needs one model and one tag snapshot");
   AIVision.tagSnapshotResult = 0;
@@ -467,7 +454,7 @@ void displayModelAndTags() {
     nextFrame();
     require(hasText("Cup / 4 / 79 / 152,153"), "Cup lost when tags are also detected");
     require(hasText("AI Vision P6: 1 detected, 1 matched"), "Tag counted as a model object");
-    require(hasText("Tags 1: 2=A1"), "Tag missing next to model object");
+    require(hasText("Tags 1: 2=A"), "Tag missing next to model object");
   }
 }
 
@@ -592,7 +579,6 @@ const testCase tests[] = {
   {"calibration-disconnect", calibrationDisconnect},
   {"calibration-snapshot-fault", calibrationSnapshotFault},
   {"goal-classification", goalClassification},
-  {"goal-quadrant-names", goalQuadrantNames},
   {"tag-detection", tagDetection},
   {"tag-filtering", tagFiltering},
   {"tag-output-limit", tagOutputLimit},

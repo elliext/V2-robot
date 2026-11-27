@@ -174,27 +174,26 @@ are deferred until recognition and driver preferences are confirmed.
 [src/AprilTag.cpp](src/AprilTag.cpp) identifies goals from their AprilTags
 using the field facts in [knowledge/field-setup.md](knowledge/field-setup.md):
 
-| Tag | Goal | Quadrant number |
-|---|---|---|
-| 0 | Center | n/a |
-| 1 | Neutral | 1 (Red 1 / Blue 1) |
-| 2 | Alliance | 1 (Red 1 / Blue 1) |
-| 3 | Alliance | 2 (Red 2 / Blue 2) |
-| 4 | Neutral | 2 (Red 2 / Blue 2) |
+| Tag | Goal |
+|---|---|
+| 0 | Center |
+| 1 | Neutral |
+| 2 | Alliance |
+| 3 | Alliance |
+| 4 | Neutral |
 
 It is not confirmed whether Blue's tags are 1-4 or 5-8, so IDs 1-8 are accepted
 and classified by `tagId % 4` (remainder 0 is tag 4). Other IDs are ignored.
-Tags 1-4 may repeat on both alliances, so a tag gives the goal's role and quadrant
-number but not its alliance. `goalQuadrantName()` turns a tag into a quadrant
-name only when the caller supplies the alliance. `detectGoalTags()` takes a tag
-snapshot, ignores unknown IDs and missing or non-tag objects, and returns the tag
-ID, role, quadrant number, center, and size. It overwrites `AIVision.objects`,
-so the display reads model objects first. Autonomous code does not use it yet.
+`detectGoalTags()` takes a tag snapshot, ignores unknown IDs and missing or
+non-tag objects, and returns each tag's ID, role (center, alliance or neutral),
+center, and size. The tag does not name a quadrant. It overwrites
+`AIVision.objects`, so the display reads model objects first. Autonomous code
+does not use it yet.
 
-Footer line of the display: `Tags 3: 0=C 1=N1 2=A1` (`C` center, `A` alliance,
-`N` neutral, followed by the quadrant number), `Tags: none`, or
-`Tags: snapshot error`. It replaces the earlier tilt/occlusion note. Tilt and
-occlusion still make the Cup/pin distance approximate.
+Footer line of the display: `Tags 3: 0=C 1=N 2=A` (tag ID, then `C` center,
+`A` alliance or `N` neutral), `Tags: none`, or `Tags: snapshot error`. It
+replaces the earlier tilt/occlusion note. Tilt and occlusion still make the
+Cup/pin distance approximate.
 
 #### Distance Calibration (Display Only)
 
@@ -300,15 +299,14 @@ The tests compile the actual [AI Vision display code](src/AIVision.cpp) against
 small sensor, timer, and screen fakes in [tests/fakes/vex.h](tests/fakes/vex.h).
 Each case runs in a separate process so the display's static state is isolated.
 
-The 29 cases cover missing hardware, model and tag configuration, reported object
+The 28 cases cover missing hardware, model and tag configuration, reported object
 data, default all-class filtering, rejected object types/nonexistent objects,
 stale-data clearing, the 3-object/two-row display limit with 24 detections,
 invalid snapshot counts and recovery, the exact 250 ms refresh boundary,
 and reconnection. Distance cases check exact reference/scaled output, sideways
 boxes, cup versus pin dimensions, invalid/clipped boxes, calibration ambiguity,
 touch debouncing and taps between snapshots, disconnect invalidation, and
-snapshot-fault cancellation. Ten AprilTag cases cover the tag table, quadrant
-names, geometry, filtering, output limits, snapshot errors, and the combined
+snapshot-fault cancellation. Nine AprilTag cases cover the tag table, geometry, filtering, output limits, snapshot errors, and the combined
 model-and-tag display.
 The same cases also run with `AI_VISION_TEST` and its exact 1000 ms refresh
 boundary, plus three auto-calibration cases covering the five-sample threshold,

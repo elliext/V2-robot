@@ -293,13 +293,9 @@ void updateAIVisionDisplay() {
     char line[64];
     int length = snprintf(line, sizeof(line), "Tags %d:", tagCount);
     for (int i = 0; i < tagCount && i < kDisplayTags; ++i) {
-      const GoalTag& goal = tags[i].goal;
-      if (goal.role == GoalRole::Center) {
-        length += snprintf(line + length, sizeof(line) - length, " %d=C", tags[i].tagId);
-      } else {
-        length += snprintf(line + length, sizeof(line) - length, " %d=%c%d", tags[i].tagId,
-                           goal.role == GoalRole::Alliance ? 'A' : 'N', goal.quadrantNumber);
-      }
+      const GoalRole role = tags[i].role;
+      length += snprintf(line + length, sizeof(line) - length, " %d=%c", tags[i].tagId,
+                         role == GoalRole::Center ? 'C' : role == GoalRole::Alliance ? 'A' : 'N');
     }
     Brain.Screen.printAt(10, 208, true, "%s", line);
   }

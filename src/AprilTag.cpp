@@ -7,9 +7,9 @@ namespace {
 constexpr int kSnapshotObjects = 24;
 }
 
-bool classifyGoalTag(int tagId, GoalTag& goal) {
+bool classifyGoalTag(int tagId, GoalRole& role) {
   if (tagId == 0) {
-    goal = {GoalRole::Center, 0};
+    role = GoalRole::Center;
     return true;
   }
   // Blue may reuse 1-4 or use 5-8 (unconfirmed), so the position within the
@@ -18,21 +18,10 @@ bool classifyGoalTag(int tagId, GoalTag& goal) {
     return false;
   }
   switch (tagId % 4) {
-    case 1: goal = {GoalRole::Neutral, 1}; return true;
-    case 2: goal = {GoalRole::Alliance, 1}; return true;
-    case 3: goal = {GoalRole::Alliance, 2}; return true;
-    default: goal = {GoalRole::Neutral, 2}; return true;
+    case 2:
+    case 3: role = GoalRole::Alliance; return true;
+    default: role = GoalRole::Neutral; return true;
   }
-}
-
-const char* goalQuadrantName(const GoalTag& goal, bool redAlliance) {
-  if (goal.role == GoalRole::Center) {
-    return "Center";
-  }
-  if (goal.quadrantNumber == 1) {
-    return redAlliance ? "Red 1" : "Blue 1";
-  }
-  return redAlliance ? "Red 2" : "Blue 2";
 }
 
 int detectGoalTags(GoalTagDetection* out, int maxOut) {
@@ -43,12 +32,12 @@ int detectGoalTags(GoalTagDetection* out, int maxOut) {
   int written = 0;
   for (int i = 0; i < count && written < maxOut; ++i) {
     const auto& object = AIVision.objects[i];
-    GoalTag goal;
+    GoalRole role;
     if (!object.exists || object.type != aivision::objectType::tagObject ||
-        !classifyGoalTag(static_cast<int>(object.id), goal)) {
+        !classifyGoalTag(static_cast<int>(object.id), role)) {
       continue;
     }
-    out[written++] = {static_cast<int>(object.id), goal, object.centerX,
+    out[written++] = {static_cast<int>(object.id), role, object.centerX,
                       object.centerY, object.width, object.height};
   }
   return written;
