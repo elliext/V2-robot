@@ -378,6 +378,10 @@ void goalClassification() {
     {2, GoalRole::Alliance, 1},
     {3, GoalRole::Alliance, 2},
     {4, GoalRole::Neutral, 2},
+    {5, GoalRole::Neutral, 1},
+    {6, GoalRole::Alliance, 1},
+    {7, GoalRole::Alliance, 2},
+    {8, GoalRole::Neutral, 2},
   };
   for (const auto& row : expected) {
     GoalTag goal;
@@ -386,7 +390,7 @@ void goalClassification() {
             "Tag classified as the wrong goal");
   }
   GoalTag goal;
-  require(!classifyGoalTag(-1, goal) && !classifyGoalTag(5, goal),
+  require(!classifyGoalTag(-1, goal) && !classifyGoalTag(9, goal),
           "Non-goal tag accepted");
 }
 
@@ -415,7 +419,7 @@ void tagDetection() {
 }
 
 void tagFiltering() {
-  AIVision.tagData[0] = tag(7);
+  AIVision.tagData[0] = tag(9);
   AIVision.tagData[1] = tag(2);
   AIVision.tagData[1].exists = false;
   AIVision.tagData[2] = tag(1);

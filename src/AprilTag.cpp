@@ -8,13 +8,20 @@ constexpr int kSnapshotObjects = 24;
 }
 
 bool classifyGoalTag(int tagId, GoalTag& goal) {
-  switch (tagId) {
-    case 0: goal = {GoalRole::Center, 0}; return true;
+  if (tagId == 0) {
+    goal = {GoalRole::Center, 0};
+    return true;
+  }
+  // Blue may reuse 1-4 or use 5-8 (unconfirmed), so the position within the
+  // group of four is tagId % 4; remainder 0 is tag 4.
+  if (tagId < 1 || tagId > 8) {
+    return false;
+  }
+  switch (tagId % 4) {
     case 1: goal = {GoalRole::Neutral, 1}; return true;
     case 2: goal = {GoalRole::Alliance, 1}; return true;
     case 3: goal = {GoalRole::Alliance, 2}; return true;
-    case 4: goal = {GoalRole::Neutral, 2}; return true;
-    default: return false;
+    default: goal = {GoalRole::Neutral, 2}; return true;
   }
 }
 

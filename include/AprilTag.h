@@ -21,8 +21,10 @@ struct GoalTagDetection {
   int height;
 };
 
-// Tag 0 is the center goal; 2 and 3 are alliance goals; 1 and 4 are neutral.
-// Returns false for IDs that are not goal tags.
+// Tag 0 is the center goal. Otherwise the tag's position in its group of four
+// (tagId % 4, with 0 meaning 4) selects the goal: 2 and 3 are alliance goals,
+// 1 and 4 are neutral. IDs 1-8 are accepted because it is unconfirmed whether
+// Blue uses 1-4 or 5-8. Returns false for IDs that are not goal tags.
 bool classifyGoalTag(int tagId, GoalTag& goal);
 
 // "Center", "Red 1", "Blue 2", ... The caller supplies the alliance because

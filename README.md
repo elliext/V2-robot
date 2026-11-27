@@ -182,7 +182,9 @@ using the field facts in [knowledge/field-setup.md](knowledge/field-setup.md):
 | 3 | Alliance | 2 (Red 2 / Blue 2) |
 | 4 | Neutral | 2 (Red 2 / Blue 2) |
 
-Tags 1-4 repeat on both alliances, so a tag gives the goal's role and quadrant
+It is not confirmed whether Blue's tags are 1-4 or 5-8, so IDs 1-8 are accepted
+and classified by `tagId % 4` (remainder 0 is tag 4). Other IDs are ignored.
+Tags 1-4 may repeat on both alliances, so a tag gives the goal's role and quadrant
 number but not its alliance. `goalQuadrantName()` turns a tag into a quadrant
 name only when the caller supplies the alliance. `detectGoalTags()` takes a tag
 snapshot, ignores unknown IDs and missing or non-tag objects, and returns the tag
