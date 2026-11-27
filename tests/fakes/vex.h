@@ -32,6 +32,14 @@ public:
     };
     int clearCalls = 0;
     std::vector<line> lines;
+    bool touchDown = false;
+    int touchX = 0;
+    int touchY = 0;
+
+    bool pressing() const { return touchDown; }
+    int xPosition() const { return touchX; }
+    int yPosition() const { return touchY; }
+    void drawRectangle(int, int, int, int) {}
 
     void clearScreen() {
       ++clearCalls;
@@ -70,6 +78,10 @@ public:
     std::int16_t score = 0;
     std::int16_t centerX = 0;
     std::int16_t centerY = 0;
+    std::int16_t originX = 0;
+    std::int16_t originY = 0;
+    std::int16_t width = 0;
+    std::int16_t height = 0;
   };
 
   struct objectArray {
