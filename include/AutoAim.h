@@ -30,6 +30,7 @@ struct AssistOutput {
   double forward = 0;      // Arcade inputs, -100..100.
   double turn = 0;         // Positive turns clockwise.
   Observation target;      // What the assist acted on, including bridged dropouts.
+  bool searching = false;  // Sweeping left and right to find a target that is not in view.
   AssistEvent event = AssistEvent::None;
 };
 

@@ -9,10 +9,18 @@ constexpr int kImageHeight = 240;
 constexpr int kAimCenterX = 160;       // Shift to line the claw, not the camera, up.
 constexpr int kLockTolerancePx = 8;
 constexpr int kLockStableMs = 150;
-constexpr double kAimKp = 0.3;
-constexpr double kMinAimTurn = 14;     // Below this the drivetrain stalls.
-constexpr double kMaxAimTurn = 35;
+constexpr double kAimKp = 0.18;
+constexpr double kMinAimTurn = 12;     // Below this the drivetrain stalls.
+constexpr double kMaxAimTurn = 22;     // Gentle: a heavy robot overshoots and loses the target.
 constexpr int kNotFoundMs = 500;
+// Search sweep while aiming with nothing in view: small turn pulses, each followed
+// by a pause so the sensor takes a sharp frame. Net turning stays within about one
+// pulse either side of the starting heading. Tune on the robot.
+constexpr int kSearchDelayMs = 400;    // Wait this long before searching.
+constexpr double kSearchTurn = 18;
+constexpr int kSearchFirstPulseMs = 250;
+constexpr int kSearchPulseMs = 500;    // Twice the first pulse: swings to the other side.
+constexpr int kSearchPauseMs = 300;
 constexpr int kLostMs = 300;
 constexpr int kDropoutHoldMs = 200;   // Reuse the last sighting through brief dropouts.
 constexpr int kApproachTimeoutMs = 5000;
@@ -46,6 +54,25 @@ AssistOutput finished(AssistEvent event) {
   output.active = true;
   output.event = event;
   return output;
+}
+
+// Turn command for the search sweep, msSearching after it begins. firstDirection
+// is +1 (clockwise) or -1: the pulse toward where the target was last seen. The
+// pulses then alternate sides, so the sweep covers both directions.
+double searchTurn(int msSearching, int firstDirection) {
+  if (msSearching < kSearchFirstPulseMs) {
+    return firstDirection * kSearchTurn;
+  }
+  const int sinceFirst = msSearching - kSearchFirstPulseMs - kSearchPauseMs;
+  if (sinceFirst < 0) {
+    return 0;
+  }
+  const int period = kSearchPulseMs + kSearchPauseMs;
+  if (sinceFirst % period >= kSearchPulseMs) {
+    return 0;
+  }
+  return (sinceFirst / period) % 2 == 0 ? -firstDirection * kSearchTurn
+                                         : firstDirection * kSearchTurn;
 }
 }
 
@@ -188,12 +215,20 @@ AssistOutput AutoAim::aim(const Observation& raw, int nowMs) {
   trackSighting(raw, nowMs);
   const Observation observation = bridge(raw, nowMs);
   output.target = observation;
-  if (!observation.visible) {
+  // Never turn on a held sighting: if something (a gear, another robot) hides the
+  // target mid-turn, keep still instead of overshooting.
+  if (!raw.visible) {
     locking_ = false;
     const int since = seen_ ? lastSeenMs_ : startMs_;
     if (!notFoundReported_ && nowMs - since >= kNotFoundMs) {
       notFoundReported_ = true;
       output.event = AssistEvent::NotFound;
+    }
+    if (nowMs - since >= kSearchDelayMs) {
+      output.searching = true;
+      // Start by looking toward where the target was last seen, else clockwise.
+      const int firstDirection = seen_ && held_.centerX < kAimCenterX ? -1 : 1;
+      output.turn = searchTurn(nowMs - since - kSearchDelayMs, firstDirection);
     }
     return output;
   }

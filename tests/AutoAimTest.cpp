@@ -187,11 +187,14 @@ void approachStopsWhenTargetLost() {
 void aimRidesThroughDropouts() {
   AutoAim assist;
   const AssistOutput first = assist.update(AimTarget::Cup, false, seen(260, 60), 0);
+  require(first.turn > 0, "Target on the right turns clockwise");
   const AssistOutput dropped = assist.update(AimTarget::Cup, false, Observation(), 40);
-  require(dropped.target.visible && dropped.turn == first.turn,
-          "Aim holds its last command through a short dropout");
-  const AssistOutput gone = assist.update(AimTarget::Cup, false, Observation(), 300);
-  require(!gone.target.visible && gone.turn == 0, "Aim stops turning once the hold expires");
+  require(dropped.target.visible && dropped.turn == 0,
+          "A dropout keeps the target shown but stops turning");
+  const AssistOutput back = assist.update(AimTarget::Cup, false, seen(260, 60), 60);
+  require(back.turn > 0, "Turning resumes when the target reappears");
+  const AssistOutput gone = assist.update(AimTarget::Cup, false, Observation(), 400);
+  require(!gone.target.visible && gone.turn == 0, "Aim shows no target once the hold expires");
 }
 
 void approachIsCancelledAndTimesOut() {
@@ -214,6 +217,44 @@ void stickCancelDoesNotAbortAiming() {
   AutoAim assist;
   const AssistOutput output = assist.update(AimTarget::Cup, true, seen(260, 60), 0);
   require(output.active && output.turn > 0, "Held button keeps aiming despite stick input");
+}
+
+void searchSweepsSlightlyAndStopsOnSighting() {
+  AutoAim assist;
+  AssistOutput output = assist.update(AimTarget::Cup, false, Observation(), 0);
+  require(output.active && output.turn == 0 && !output.searching, "Search waits before starting");
+  double net = 0;
+  double maxTurn = 0;
+  bool sawLeft = false, sawRight = false, sawPause = false;
+  for (int t = 20; t <= 3000; t += 20) {
+    output = assist.update(AimTarget::Cup, false, Observation(), t);
+    net += output.turn;
+    maxTurn = output.turn > maxTurn ? output.turn : (-output.turn > maxTurn ? -output.turn : maxTurn);
+    sawRight = sawRight || output.turn > 0;
+    sawLeft = sawLeft || output.turn < 0;
+    sawPause = sawPause || (t > 500 && output.searching && output.turn == 0);
+  }
+  require(output.searching, "Search continues while nothing is seen");
+  require(sawLeft && sawRight, "Search sweeps both ways");
+  require(sawPause, "Search pauses between pulses so the sensor sees a steady frame");
+  require(maxTurn <= 25, "Search turns gently");
+  require(net > -25 * 50 && net < 25 * 50, "Search stays near the starting heading");
+
+  output = assist.update(AimTarget::Cup, false, seen(160, 60), 3020);
+  require(!output.searching && output.turn == 0, "Search stops the moment a target is seen");
+}
+
+void searchStartsTowardLastSeenSide() {
+  AutoAim assist;
+  assist.update(AimTarget::Cup, false, seen(20, 60), 0);
+  AssistOutput output;
+  for (int t = 20; t < 600; t += 20) {
+    output = assist.update(AimTarget::Cup, false, Observation(), t);
+    if (output.turn != 0) {
+      break;
+    }
+  }
+  require(output.turn < 0, "Search begins toward the side the target was last seen");
 }
 
 void newPressRestartsWithNewTarget() {
@@ -242,6 +283,8 @@ int main() {
     approachIsCancelledAndTimesOut();
     stickCancelDoesNotAbortAiming();
     newPressRestartsWithNewTarget();
+    searchSweepsSlightlyAndStopsOnSighting();
+    searchStartsTowardLastSeenSide();
   } catch (const std::exception& error) {
     std::cerr << "FAIL: " << error.what() << "\n";
     return 1;

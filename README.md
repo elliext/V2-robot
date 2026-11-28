@@ -297,6 +297,12 @@ In driver control, the **Up** and **Down** buttons aim at and approach a target:
   overlap vertically. Tipped cups and loose pins are ignored.
 - **Down** (goal): hold to turn toward the nearest goal, judged by the largest
   AprilTag.
+- **Search:** if nothing is in view after 0.4 s of holding, the robot sweeps in small
+  left/right turn pulses with pauses (so the sensor gets steady frames), starting
+  toward the side the target was last seen, and stops as soon as it sees one.
+  The pulse size and speed are `kSearch*` in [src/AutoAim.cpp](src/AutoAim.cpp).
+  Controller line 3 shows the live status (`Cup ok e+12 s64`, `Cup searching...`,
+  `Cup NOT FOUND`) and why an approach ended.
 - **Release** to drive up to the target. The controller rumbles once when the aim
   locks and twice on arrival; three long pulses mean no target, a lost target, or
   a timeout. A target that vanishes after reaching 80% of the stop size counts as
