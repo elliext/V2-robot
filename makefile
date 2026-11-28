@@ -83,9 +83,15 @@ OPTICAL_TEST_HEADERS = include/Toggle.h include/auton-selector.h tests/fakes/vex
 AUTOAIM_TEST_BINARY = build/tests/auto-aim-tests
 AUTOAIM_TEST_SOURCES = src/AutoAim.cpp tests/AutoAimTest.cpp
 AUTOAIM_TEST_HEADERS = include/AutoAim.h include/AprilTag.h include/GameObjects.h tests/fakes/vex.h
+ENCODER_ODOM_TEST_BINARY = build/tests/encoder-odom-tests
+ENCODER_ODOM_TEST_SOURCES = src/EncoderOdom.cpp tests/EncoderOdomTest.cpp
+ENCODER_ODOM_TEST_HEADERS = include/EncoderOdom.h include/robot-config.h tests/fakes/vex.h
+TURN_PID_TEST_BINARY = build/tests/turn-pid-tests
+TURN_PID_TEST_SOURCES = src/PID.cpp tests/TurnPIDTest.cpp
+TURN_PID_TEST_HEADERS = include/PID.h include/robot-config.h tests/fakes/vex.h
 
 .PHONY: test
-test: $(TEST_BINARY) $(VISION_TEST_BINARY) $(AUTON_TEST_BINARY) $(OPTICAL_TEST_BINARY) $(AUTOAIM_TEST_BINARY)
+test: $(TEST_BINARY) $(VISION_TEST_BINARY) $(AUTON_TEST_BINARY) $(OPTICAL_TEST_BINARY) $(AUTOAIM_TEST_BINARY) $(ENCODER_ODOM_TEST_BINARY) $(TURN_PID_TEST_BINARY)
 	@set -e; for test_case in $$("$(TEST_BINARY)" --list); do \
 		"$(TEST_BINARY)" "$$test_case"; \
 	done
@@ -95,6 +101,8 @@ test: $(TEST_BINARY) $(VISION_TEST_BINARY) $(AUTON_TEST_BINARY) $(OPTICAL_TEST_B
 	@"$(AUTON_TEST_BINARY)"
 	@"$(OPTICAL_TEST_BINARY)"
 	@"$(AUTOAIM_TEST_BINARY)"
+	@"$(ENCODER_ODOM_TEST_BINARY)"
+	@"$(TURN_PID_TEST_BINARY)"
 
 $(TEST_BINARY): $(TEST_SOURCES) $(TEST_HEADERS) makefile
 	@mkdir -p "$(@D)"
@@ -115,3 +123,11 @@ $(OPTICAL_TEST_BINARY): $(OPTICAL_TEST_SOURCES) $(OPTICAL_TEST_HEADERS) makefile
 $(AUTOAIM_TEST_BINARY): $(AUTOAIM_TEST_SOURCES) $(AUTOAIM_TEST_HEADERS) makefile
 	@mkdir -p "$(@D)"
 	$(HOST_CXX) -std=c++11 -Wall -Wextra -Werror -Itests/fakes -Iinclude $(AUTOAIM_TEST_SOURCES) -o "$@"
+
+$(ENCODER_ODOM_TEST_BINARY): $(ENCODER_ODOM_TEST_SOURCES) $(ENCODER_ODOM_TEST_HEADERS) makefile
+	@mkdir -p "$(@D)"
+	$(HOST_CXX) -std=c++11 -Wall -Wextra -Werror -Itests/fakes -Iinclude $(ENCODER_ODOM_TEST_SOURCES) -o "$@"
+
+$(TURN_PID_TEST_BINARY): $(TURN_PID_TEST_SOURCES) $(TURN_PID_TEST_HEADERS) makefile
+	@mkdir -p "$(@D)"
+	$(HOST_CXX) -std=c++11 -Wall -Wextra -Werror -Itests/fakes -Iinclude $(TURN_PID_TEST_SOURCES) -o "$@"

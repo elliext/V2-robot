@@ -10,6 +10,7 @@ int nowMs = 0;
 }
 
 vex::controller Controller;
+vex::brain Brain;
 vex::motor claw;
 vex::motor_group Arm;
 vex::motor_group Drive;
@@ -32,6 +33,8 @@ int visionUpdates = 0;
 int toggleCalls = 0;
 bool toggleAlliance = false;
 bool toggleResult = true;
+std::size_t movementsAtToggle = 0;
+std::vector<vex::brain::screen> touchInputs;
 
 void require(bool condition, const char* message) {
   if (!condition) {
@@ -73,7 +76,11 @@ void selectConfiguration(bool red, bool right) {
   require(Controller.Screen.clearCalls == 0, "Selection redraw clears and flickers");
   require(Controller.Screen.printCalls == 3, "Selection rendered repeatedly within an update");
   require(Controller.rumbleCalls == 1, "Confirmation should rumble once");
-  require(opticalUpdates == 3 && visionUpdates == 3, "Live displays stopped updating");
+  require(opticalUpdates == 3 && visionUpdates == 0,
+          "Optical readings should remain live without overwriting the Brain menu");
+  require(!Brain.Screen.lines.empty() &&
+          Brain.Screen.lines.back().text.find("Confirmed: ") == 0,
+          "Brain confirmation is missing");
 }
 
 void checkScoring(bool right) {
@@ -127,15 +134,8 @@ void checkRoute(bool red, bool right, bool direct = false) {
   }
   const double direction = right ? 1.0 : -1.0;
   const std::vector<movement> expected = {
-    {false, -10, 20, 1, 0},
-    {true, -60 * direction, 20, 2, 0},
-    {false, 20, 20, 0.8, 0},
-    {true, 82 * direction, 20, 0.5, 0},
-    {false, 12, 50, 0.5, 0},
-    {false, -6, 20, 0.5, 0},
-    {false, 10, 60, 0.5, 0},
-    {false, -20, 20, 0.5, 0},
-    {true, 42.5 * direction, 20, 0.3, 0}
+    {true, 75 * direction, 20, 0.25, 0},
+    {false, 15, 20, 0.8, 0}
   };
   require(movements.size() == expected.size(), "Incorrect route movement count");
   for (std::size_t i = 0; i < expected.size(); ++i) {
@@ -145,22 +145,15 @@ void checkRoute(bool red, bool right, bool direct = false) {
             actual.integral == wanted.integral && actual.tolerance == wanted.tolerance &&
             actual.timeout == wanted.timeout, "Route movement or PID settings changed");
   }
-  require(claw.commands.size() == 4 &&
-          claw.commands[0].kind == "spinFor" && claw.commands[0].value == 800 &&
-          claw.commands[0].speed == 300 &&
-          claw.commands[1].kind == "stop" && claw.commands[1].value == vex::hold &&
-          claw.commands[2].kind == "spinFor" && claw.commands[2].value == -600 &&
-          claw.commands[2].speed == 300 &&
-          claw.commands[3].kind == "spinFor" && claw.commands[3].value == 150 &&
-          claw.commands[3].speed == 300, "Claw actions changed");
-  require(Arm.commands.size() == 4 &&
-          Arm.commands[0].kind == "spin" && Arm.commands[0].value == -90 &&
-          Arm.commands[1].kind == "stop" && Arm.commands[1].value == vex::brake &&
-          Arm.commands[2].kind == "spin" && Arm.commands[2].value == 85 &&
-          Arm.commands[3].kind == "stop" && Arm.commands[3].value == vex::brake,
+  require(claw.commands.empty(), "Wing route unexpectedly commands the claw");
+  require(Arm.commands.size() == 1 &&
+          Arm.commands[0].kind == "spinForRotation" && Arm.commands[0].value == 200 &&
+          Arm.commands[0].speed == 300 && !Arm.lastSpinWaitForCompletion,
           "Arm actions changed");
-  require(fake::nowMs == 1100, "Mechanism wait durations changed");
-  require(toggleCalls == previousToggleCalls, "Shared route unexpectedly runs active toggle");
+  require(fake::nowMs == 0, "Wing route added a blocking mechanism wait");
+  require(toggleCalls == previousToggleCalls+1 && movementsAtToggle == 0,
+          "Wing route must run the active toggle before moving");
+  require(toggleAlliance == red, "Wing route ignores selected alliance");
 }
 }
 
@@ -181,6 +174,12 @@ void vex::wait(int duration, vex::timeUnits) {
     Controller.ButtonDown = frame.ButtonDown;
     Controller.ButtonL1 = frame.ButtonL1;
     Controller.ButtonR1 = frame.ButtonR1;
+    if(!touchInputs.empty()){
+      const auto& touch = touchInputs.at(inputIndex);
+      Brain.Screen.touchDown = touch.touchDown;
+      Brain.Screen.touchX = touch.touchX;
+      Brain.Screen.touchY = touch.touchY;
+    }
   }
 }
 
@@ -195,6 +194,7 @@ void turnPID(double target, double integral, double tolerance, double timeout) {
 bool activeToggle(vex::competition& competition, bool red) {
   require(&competition == &Competition, "Wrong competition passed to toggle");
   ++toggleCalls;
+  movementsAtToggle = movements.size();
   toggleAlliance = red;
   return toggleResult;
 }
@@ -227,6 +227,7 @@ int main() {
     require(selectedWing == AutonWing::Right, "L1 changed wing during selection");
     toggleResult = false;
     require(!activeToggle(), "Toggle failure was not propagated");
+    toggleResult = true;
     redAlliance = true;
     inputs.assign(5, vex::controller());
     inputs[0].ButtonA.pressed = true;
@@ -270,6 +271,63 @@ int main() {
     require(selectedWing == AutonWing::Left && Controller.Screen.text == "Set Left Wing Blue  ",
             "Left Wing selection or confirmation incorrect");
     checkRoute(false, false);
+    // Both touchscreen choices must work with no controller buttons pressed.
+    for(bool right : {false, true}){
+      for(bool red : {false, true}){
+        redAlliance = !red;
+        Brain.Screen = vex::brain::screen();
+        inputs.assign(7, vex::controller());
+        touchInputs.assign(7, vex::brain::screen());
+        touchInputs[1].touchDown = touchInputs[2].touchDown = true;
+        touchInputs[1].touchX = touchInputs[2].touchX = right ? 300 : 50;
+        touchInputs[1].touchY = touchInputs[2].touchY = 70;
+        touchInputs[4].touchDown = true;
+        touchInputs[4].touchX = red ? 50 : 300;
+        touchInputs[4].touchY = 140;
+        touchInputs[6].touchDown = true;
+        touchInputs[6].touchX = 100;
+        touchInputs[6].touchY = 220;
+        Controller = inputs[0];
+        inputIndex = 0;
+        selecting = true;
+        selectAuton();
+        selecting = false;
+        require(selectedWing == (right ? AutonWing::Right : AutonWing::Left) &&
+                redAlliance == red, "Touchscreen selection failed");
+        require(inputIndex == 6, "Touchscreen confirmed before Confirm was tapped");
+        checkRoute(red, right);
+        touchInputs.clear();
+        Brain.Screen.touchDown = false;
+      }
+    }
+    // A held Confirm touch at startup must be released and tapped again.
+    inputs.assign(4, vex::controller());
+    touchInputs.assign(4, vex::brain::screen());
+    touchInputs[0].touchDown = touchInputs[1].touchDown = touchInputs[3].touchDown = true;
+    for(auto& touch : touchInputs){
+      touch.touchX = 100;
+      touch.touchY = 220;
+    }
+    Controller = inputs[0];
+    Brain.Screen.touchDown = true;
+    Brain.Screen.touchX = 100;
+    Brain.Screen.touchY = 220;
+    inputIndex = 0;
+    selecting = true;
+    selectAuton();
+    selecting = false;
+    require(inputIndex == 3, "Held Confirm touch confirmed at startup");
+    touchInputs.clear();
+    Brain.Screen.touchDown = false;
+    toggleResult = false;
+    for(bool right : {false, true}){
+      selectedWing = right ? AutonWing::Right : AutonWing::Left;
+      movements.clear();
+      Arm.commands.clear();
+      autonomous();
+      require(movements.empty() && Arm.commands.empty(),
+              "Wing route continued after active toggle failure");
+    }
     const int previousToggleCalls = toggleCalls;
     selectedWing = static_cast<AutonWing>(2);
     Drive.commands.clear();

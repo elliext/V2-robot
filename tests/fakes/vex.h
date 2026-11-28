@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <math.h>
 
 namespace fake {
 extern int nowMs;
@@ -17,6 +18,8 @@ namespace vex {
 enum timeUnits { msec };
 enum directionType { forward, reverse };
 enum velocityUnits { rpm, percent };
+enum rotationUnits { degrees, deg = degrees };
+enum class color { black, white };
 enum brakeType { hold, brake, coast };
 enum class ledState { on, off };
 
@@ -24,6 +27,12 @@ void wait(int duration, timeUnits);
 
 class motor {
 public:
+  bool connected = true;
+  double positionDegrees = 0;
+  bool lastSpinWaitForCompletion = true;
+  bool installed() const { return connected; }
+  double position(rotationUnits) const { return positionDegrees; }
+  void setPosition(double value, rotationUnits) { positionDegrees = value; }
   struct command {
     std::string kind;
     double value;
@@ -33,6 +42,12 @@ public:
   void spinFor(directionType direction, double duration, timeUnits,
                double speed, velocityUnits) {
     commands.push_back({"spinFor", direction == forward ? duration : -duration, speed});
+  }
+  void spinFor(directionType direction, double rotation, rotationUnits,
+               double speed, velocityUnits, bool waitForCompletion = true) {
+    lastSpinWaitForCompletion = waitForCompletion;
+    commands.push_back({"spinForRotation",
+                        direction == forward ? rotation : -rotation, speed});
   }
   void spin(directionType direction, double speed, velocityUnits) {
     commands.push_back({"spin", direction == forward ? speed : -speed, 0});
@@ -60,7 +75,22 @@ public:
   void setLightPower(double, velocityUnits) {}
   void setLight(ledState) {}
 };
-class inertial {};
+class inertial {
+public:
+  bool connected = true;
+  bool calibrating = false;
+  double headingDegrees = 0;
+  double rotationDegrees = 0;
+  int rotationResetCalls = 0;
+  bool installed() const { return connected; }
+  bool isCalibrating() const { return calibrating; }
+  double heading(rotationUnits) const { return headingDegrees; }
+  double rotation() const { return rotationDegrees; }
+  void setRotation(double value, rotationUnits) {
+    rotationDegrees = value;
+    ++rotationResetCalls;
+  }
+};
 class competition {
 public:
   bool enabled = false;
@@ -142,6 +172,8 @@ public:
     int xPosition() const { return touchX; }
     int yPosition() const { return touchY; }
     void drawRectangle(int, int, int, int) {}
+    void setPenColor(color) {}
+    void setFillColor(color) {}
 
     void clearScreen() {
       ++clearCalls;

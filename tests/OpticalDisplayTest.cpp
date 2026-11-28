@@ -97,7 +97,7 @@ void checkActiveToggle() {
   toggleOptical1.sampleHue = toggleOptical2.sampleHue = 220;
   const int timeoutStart = fake::nowMs;
   require(!activeToggle(competition, true), "Blue was accepted as red");
-  require(fake::nowMs - timeoutStart == 3000, "Autonomous timeout changed");
+  require(fake::nowMs - timeoutStart == 2000, "Autonomous toggle must time out at 2 seconds");
   require(toggleLeft.commands.back().kind == "stop" &&
           toggleRight.commands.back().kind == "stop", "Timeout did not stop toggles");
   onWait = [&competition] { competition.enabled = false; };

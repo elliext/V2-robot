@@ -54,6 +54,13 @@ void drivePID(double target, double maxIntegral, double tolerance){
   wait(50, msec);
 }
 void turnPID(double target, double maxIntegral, double tolerance, double timeoutMs){
+  if(!isfinite(target) || !isfinite(maxIntegral) || maxIntegral<0 ||
+     !isfinite(tolerance) || tolerance<=0){
+    Drive.stop(brake);
+    printf("Turn PID: target must be finite, integral cap nonnegative, and tolerance positive.\n");
+    Controller.rumble("---");
+    return;
+  }
   if(!isfinite(timeoutMs) || timeoutMs<0){
     Drive.stop(brake);
     printf("Turn PID: timeout must be finite and nonnegative.\n");
@@ -67,61 +74,90 @@ void turnPID(double target, double maxIntegral, double tolerance, double timeout
     return;
   }
   
-  //Initialize remaining variables
   double error = target;
-
-  double derivative = 0;
   double integral = 0;
   double lastError = error;
-  double total = 0;
-
-  double kP = 1.1;
-  double kI = 0.12;
-  double kD = 0.12;
+  const double kP = 1.1;
+  const double kI = 0.12;
+  const double kD = 0.12;
+  const double settleTimeMs = 150;
+  const double settleSpeedDegreesPerSecond = 5;
   
   const bool timeoutEnabled = timeoutMs>0;
   timer turnTimer;
   inertialSensor.setRotation(0,degrees);
   turnTimer.reset();
-  //Main loop, when the robot is more than the desired distance from the target
-  while(fabs(error)>tolerance &&
-        (!timeoutEnabled || turnTimer.time(msec)<timeoutMs)){
-    
-    //Calculate how far the robot is from the target
-    double measuredValue = (inertialSensor.rotation());
+  double previousTimeMs = 0;
+  double settledSinceMs = -1;
+  bool settled = false;
+  bool sensorFault = false;
+  while(true){
+    if(!inertialSensor.installed() || inertialSensor.isCalibrating()){
+      printf("Turn PID: inertial sensor became unavailable during the turn.\n");
+      sensorFault = true;
+      break;
+    }
+    const double measuredValue = inertialSensor.rotation();
+    if(!isfinite(measuredValue)){
+      printf("Turn PID: non-finite inertial rotation during the turn.\n");
+      sensorFault = true;
+      break;
+    }
+    const double elapsedMs = turnTimer.time(msec);
+    const double dt = (elapsedMs-previousTimeMs)/1000.0;
     error=target-measuredValue;
-    //Find integral value
-    integral+= error*15/1000;
-    //Prevent integral windup by capping the maximum integral value
-    if (integral>maxIntegral){
-      integral=maxIntegral;
+    const double derivative = dt>0 ? (error-lastError)/dt : 0;
+    const bool withinTolerance = fabs(error)<=tolerance;
+    if(withinTolerance && fabs(derivative)<=settleSpeedDegreesPerSecond){
+      if(settledSinceMs<0){
+        settledSinceMs = elapsedMs;
+      }
+      if(elapsedMs-settledSinceMs>=settleTimeMs){
+        settled = true;
+        break;
+      }
+    } else {
+      settledSinceMs = -1;
     }
-    if(integral<-maxIntegral){
-      integral=-maxIntegral;
+    if(timeoutEnabled && elapsedMs>=timeoutMs){
+      break;
     }
-    //Find derivative value
-    derivative=(error-lastError)/0.015;
+    if(withinTolerance){
+      integral = 0;
+      Drive.stop(brake);
+    } else {
+      if((error>0 && lastError<0) || (error<0 && lastError>0)){
+        integral = 0;
+      }
+      const double candidateIntegral =
+          fmax(-maxIntegral, fmin(maxIntegral, integral+error*dt));
+      const double candidateOutput =
+          kP*error+kD*derivative+kI*candidateIntegral;
+      // Do not wind up the integral against an already saturated motor command.
+      if(fabs(candidateOutput)<=100 || candidateOutput*error<0){
+        integral = candidateIntegral;
+      }
+      const double total =
+          fmax(-100, fmin(100, kP*error+kD*derivative+kI*integral));
+      LeftDrive.spin(reverse,total,percent);
+      RightDrive.spin(forward,total,percent);
+    }
     lastError=error;
-    //Calculate the target speed for the drivetrain
-    total=kP*error+kD*derivative+kI*integral;
-    //Spin drivetrain at the target speed
-    LeftDrive.spin(reverse,total,percent);
-    RightDrive.spin(forward,total,percent);
-    
-    
-
-    //Short wait to save resources
+    previousTimeMs=elapsedMs;
     wait(timeoutEnabled ? fmax(0, fmin(15, timeoutMs-turnTimer.time(msec))) :
                           15, msec);
   }
-  //Brake motors after driving is finished
   Drive.stop(brake);
-  if(fabs(error)>tolerance && timeoutEnabled && turnTimer.time(msec)>=timeoutMs){
-    printf("Turn PID: timed out after %.2f ms; remaining error %.2f degrees.\n",
-           timeoutMs, error);
+  if(sensorFault){
     Controller.rumble("---");
+  } else if(!settled){
+    printf("Turn PID: timed out after %.2f ms; remaining error %.2f degrees; not settled.\n",
+           turnTimer.time(msec), error);
+    Controller.rumble("---");
+  } else {
+    printf("Turn PID: settled at %.2f degrees for target %.2f; error %.2f; elapsed %.2f ms.\n",
+           target-error, target, error, turnTimer.time(msec));
   }
-  //Short delay to come to a full stop
   wait(50, msec);
 }
 void armPID(double target, double maxIntegral, double tolerance){

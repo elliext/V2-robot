@@ -36,32 +36,31 @@ void scoreRightAllianceGoal(void) {
   claw.spinFor(reverse, 600 , msec, 300, rpm);
 }
 void leftWing(void) {
-  scoreLeftAllianceGoal();
-  turnPID(60, 20, 2);
-  claw.spinFor(forward, 150, msec, 300, rpm);
-  drivePID(20, 20, 0.8);
-  turnPID(-82, 20, 0.5);
-  drivePID(12, 50, 0.5);
-  drivePID(-6, 20, 0.5);
-  drivePID(10, 60, 0.5);
-  drivePID(-20, 20, 0.5);
-  turnPID(-42.5, 20, 0.3);
-  Arm.stop(brake);
+  if (!activeToggle()) {
+    return;
+  }
+  turnPID(-75, 20, 0.25);
+  Arm.spinFor(forward, 200, deg, 300, rpm, false);
+  drivePID(15, 20, 0.8);
 }
 
 void rightWing(void) {
-  scoreRightAllianceGoal();
-  turnPID(-60, 20, 2);
-  claw.spinFor(forward, 150, msec, 300, rpm);
-  drivePID(20, 20, 0.8);
-  turnPID(82, 20, 0.5);
-  drivePID(12, 50, 0.5);
-  drivePID(-6, 20, 0.5);
-  drivePID(10, 60, 0.5);
-  drivePID(-20, 20, 0.5);
-  turnPID(42.5, 20, 0.3);
-  Arm.stop(brake);
+  Drive.stop(brake);
+  if (!activeToggle()) {
+    return;
+  }
+  turnPID(75, 20, 0.25);
+  Arm.spinFor(forward, 200, deg, 300, rpm, false);
+  drivePID(15, 20, 0.8);
 }
+//Spin for sintax:
+// bool spinFor(
+//  directionType dir,
+//  double        rotation,
+//  rotationUnits units,
+//  double        velocity,
+//  velocityUnits units_v,
+//  bool          waitForCompletion = true );
 
 /*---------------------------------------------------------------------------*/
 /*                                                                           */

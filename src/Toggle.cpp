@@ -9,7 +9,7 @@ namespace {
 // Verify red with the controller readout and move kRedHi/kRedLo if needed. ----
 constexpr double kLightPowerPct      = 100;   // 100% washes out glossy plastic
 constexpr int    kProximityThreshold = 40;   // 0-255; lower = triggers farther away
-constexpr double kRedLo    = 360, kRedHi    = 24;   // wraps around 0
+constexpr double kRedLo    = 350, kRedHi    = 24;   // wraps around 0
 constexpr double kYellowLo = 24,  kYellowHi = 70;
 constexpr double kBlueLo   = 100, kBlueHi   = 350;
 constexpr int kTargetStableMs = 100;
@@ -109,7 +109,7 @@ void updateOpticalDisplay(){
 }
 
 bool activeToggle(vex::competition& competitionState, bool redAlliance){
-  const double TIMEOUT_MS = 3000;
+  const double TIMEOUT_MS = 2000;
   stopActiveToggle();
   if(!competitionState.isEnabled() || !competitionState.isAutonomous()){
     printf("Active toggle: requires enabled autonomous mode.\n");
