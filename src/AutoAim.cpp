@@ -1,5 +1,6 @@
 #include "vex.h"
 #include "AutoAim.h"
+#include "GameObjects.h"
 
 namespace {
 // Pixel values are for the 320x240 AI Vision image. The stop sizes and the aim
@@ -8,10 +9,18 @@ constexpr int kImageHeight = 240;
 constexpr int kAimCenterX = 160;       // Shift to line the claw, not the camera, up.
 constexpr int kLockTolerancePx = 8;
 constexpr int kLockStableMs = 150;
-constexpr double kAimKp = 0.3;
-constexpr double kMinAimTurn = 14;     // Below this the drivetrain stalls.
-constexpr double kMaxAimTurn = 35;
+constexpr double kAimKp = 0.18;
+constexpr double kMinAimTurn = 12;     // Below this the drivetrain stalls.
+constexpr double kMaxAimTurn = 22;     // Gentle: a heavy robot overshoots and loses the target.
 constexpr int kNotFoundMs = 500;
+// Search sweep while aiming with nothing in view: small turn pulses, each followed
+// by a pause so the sensor takes a sharp frame. Net turning stays within about one
+// pulse either side of the starting heading. Tune on the robot.
+constexpr int kSearchDelayMs = 400;    // Wait this long before searching.
+constexpr double kSearchTurn = 18;
+constexpr int kSearchFirstPulseMs = 250;
+constexpr int kSearchPulseMs = 500;    // Twice the first pulse: swings to the other side.
+constexpr int kSearchPauseMs = 300;
 constexpr int kLostMs = 300;
 constexpr int kDropoutHoldMs = 200;   // Reuse the last sighting through brief dropouts.
 constexpr int kApproachTimeoutMs = 5000;
@@ -46,26 +55,74 @@ AssistOutput finished(AssistEvent event) {
   output.event = event;
   return output;
 }
+
+// Turn command for the search sweep, msSearching after it begins. firstDirection
+// is +1 (clockwise) or -1: the pulse toward where the target was last seen. The
+// pulses then alternate sides, so the sweep covers both directions.
+double searchTurn(int msSearching, int firstDirection) {
+  if (msSearching < kSearchFirstPulseMs) {
+    return firstDirection * kSearchTurn;
+  }
+  const int sinceFirst = msSearching - kSearchFirstPulseMs - kSearchPauseMs;
+  if (sinceFirst < 0) {
+    return 0;
+  }
+  const int period = kSearchPulseMs + kSearchPauseMs;
+  if (sinceFirst % period >= kSearchPulseMs) {
+    return 0;
+  }
+  return (sinceFirst / period) % 2 == 0 ? -firstDirection * kSearchTurn
+                                         : firstDirection * kSearchTurn;
+}
+}
+
+namespace {
+// A pin counts as in the cup when its center is within the cup's width and the
+// two boxes overlap vertically; a pin standing in a cup usually sticks out the top.
+bool pinInCup(const vex::aivision::object& cup, const vex::aivision::object* objects,
+              int count) {
+  for (int i = 0; i < count; ++i) {
+    const auto& pin = objects[i];
+    if (!pin.exists || pin.type != vex::aivision::objectType::modelObject ||
+        !isPinClass(pin.className)) {
+      continue;
+    }
+    const bool withinWidth = pin.centerX >= cup.originX &&
+                             pin.centerX <= cup.originX + cup.width;
+    const bool overlapsVertically = pin.originY < cup.originY + cup.height &&
+                                    pin.originY + pin.height > cup.originY;
+    if (withinWidth && overlapsVertically) {
+      return true;
+    }
+  }
+  return false;
+}
 }
 
 Observation observeCup(const vex::aivision::object* objects, int count) {
   Observation best;
   int bestBottom = 0;
+  bool bestHasPin = false;
   for (int i = 0; i < count; ++i) {
     const auto& object = objects[i];
     if (!object.exists || object.type != vex::aivision::objectType::modelObject ||
-        strcmp(object.className, "Cup") != 0 || object.width <= 0 ||
+        !isCupClass(object.className) || object.width <= 0 ||
         object.height < kUprightRatio * object.width) {
       continue;
     }
-    // On the floor, a nearer cup sits lower in the image.
+    // Prefer a cup that already holds a pin; among equals, the nearest. On the
+    // floor, a nearer cup sits lower in the image.
+    const bool hasPin = pinInCup(object, objects, count);
     const int bottom = object.originY + object.height;
-    if (!best.visible || bottom > bestBottom) {
+    const bool better = !best.visible || (hasPin && !bestHasPin) ||
+                        (hasPin == bestHasPin && bottom > bestBottom);
+    if (better) {
       best.visible = true;
       best.centerX = object.centerX;
       best.size = object.height;
       best.bottomClipped = bottom >= kImageHeight - 2;
       bestBottom = bottom;
+      bestHasPin = hasPin;
     }
   }
   return best;
@@ -158,12 +215,20 @@ AssistOutput AutoAim::aim(const Observation& raw, int nowMs) {
   trackSighting(raw, nowMs);
   const Observation observation = bridge(raw, nowMs);
   output.target = observation;
-  if (!observation.visible) {
+  // Never turn on a held sighting: if something (a gear, another robot) hides the
+  // target mid-turn, keep still instead of overshooting.
+  if (!raw.visible) {
     locking_ = false;
     const int since = seen_ ? lastSeenMs_ : startMs_;
     if (!notFoundReported_ && nowMs - since >= kNotFoundMs) {
       notFoundReported_ = true;
       output.event = AssistEvent::NotFound;
+    }
+    if (nowMs - since >= kSearchDelayMs) {
+      output.searching = true;
+      // Start by looking toward where the target was last seen, else clockwise.
+      const int firstDirection = seen_ && held_.centerX < kAimCenterX ? -1 : 1;
+      output.turn = searchTurn(nowMs - since - kSearchDelayMs, firstDirection);
     }
     return output;
   }

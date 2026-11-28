@@ -156,8 +156,8 @@ The sensor can recognize only classes in its installed model. Hardware testing
 with the Override model confirmed `Cup` (ID 4) and `RedYellowPin` (ID 2), and
 confirmed that detections clear when the objects leave the view. Other pin
 classes and goals have not yet been verified. No class names or IDs are
-hard-coded as detection filters. Distance estimation supports only the confirmed
-`Cup` and `RedYellowPin` class names. Missing hardware and invalid
+hard-coded as detection filters. Distance estimation supports `Cup` and any class
+whose name ends in `Pin`; only `RedYellowPin` has been confirmed on hardware. Missing hardware and invalid
 snapshot counts are reported on the Brain screen and in console output.
 Detection resumes automatically after a detected disconnection and reconnection.
 
@@ -291,10 +291,18 @@ builds remain manual-calibration only.
 
 In driver control, the **Up** and **Down** buttons aim at and approach a target:
 
-- **Up** (cup): hold to turn toward the nearest *upright* cup (taller than wide,
-  lowest in the image); tipped cups and pins are ignored.
+- **Up** (cup): hold to turn toward an *upright* cup (taller than wide). A cup that
+  already holds a pin is preferred; otherwise the nearest (lowest in the image).
+  A pin counts as in a cup when its center is within the cup's width and the boxes
+  overlap vertically. Tipped cups and loose pins are ignored.
 - **Down** (goal): hold to turn toward the nearest goal, judged by the largest
   AprilTag.
+- **Search:** if nothing is in view after 0.4 s of holding, the robot sweeps in small
+  left/right turn pulses with pauses (so the sensor gets steady frames), starting
+  toward the side the target was last seen, and stops as soon as it sees one.
+  The pulse size and speed are `kSearch*` in [src/AutoAim.cpp](src/AutoAim.cpp).
+  Controller line 3 shows the live status (`Cup ok e+12 s64`, `Cup searching...`,
+  `Cup NOT FOUND`) and why an approach ended.
 - **Release** to drive up to the target. The controller rumbles once when the aim
   locks and twice on arrival; three long pulses mean no target, a lost target, or
   a timeout. A target that vanishes after reaching 80% of the stop size counts as

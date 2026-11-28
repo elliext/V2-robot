@@ -17,7 +17,8 @@ struct Observation {
   bool bottomClipped = false;
 };
 
-// Nearest upright cup, or an invisible observation.
+// Upright cup, or an invisible observation. A cup holding a pin wins; otherwise
+// the nearest cup.
 Observation observeCup(const vex::aivision::object* objects, int count);
 // Nearest goal, judged by the largest AprilTag.
 Observation observeGoal(const GoalTagDetection* tags, int count);
@@ -29,6 +30,7 @@ struct AssistOutput {
   double forward = 0;      // Arcade inputs, -100..100.
   double turn = 0;         // Positive turns clockwise.
   Observation target;      // What the assist acted on, including bridged dropouts.
+  bool searching = false;  // Sweeping left and right to find a target that is not in view.
   AssistEvent event = AssistEvent::None;
 };
 

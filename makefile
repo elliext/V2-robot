@@ -72,7 +72,7 @@ endif
 HOST_CXX ?= c++
 TEST_BINARY = build/tests/ai-vision-tests
 TEST_SOURCES = src/AIVision.cpp src/AprilTag.cpp tests/AIVisionTest.cpp
-TEST_HEADERS = include/AIVision.h include/AprilTag.h tests/fakes/vex.h
+TEST_HEADERS = include/AIVision.h include/AprilTag.h include/GameObjects.h tests/fakes/vex.h
 VISION_TEST_BINARY = build/tests/ai-vision-slow-tests
 AUTON_TEST_BINARY = build/tests/auton-tests
 AUTON_TEST_SOURCES = src/auton-selector.cpp src/autonomos.cpp tests/AutonTest.cpp
@@ -82,7 +82,7 @@ OPTICAL_TEST_SOURCES = src/Toggle.cpp tests/OpticalDisplayTest.cpp
 OPTICAL_TEST_HEADERS = include/Toggle.h include/auton-selector.h tests/fakes/vex.h
 AUTOAIM_TEST_BINARY = build/tests/auto-aim-tests
 AUTOAIM_TEST_SOURCES = src/AutoAim.cpp tests/AutoAimTest.cpp
-AUTOAIM_TEST_HEADERS = include/AutoAim.h include/AprilTag.h tests/fakes/vex.h
+AUTOAIM_TEST_HEADERS = include/AutoAim.h include/AprilTag.h include/GameObjects.h tests/fakes/vex.h
 
 .PHONY: test
 test: $(TEST_BINARY) $(VISION_TEST_BINARY) $(AUTON_TEST_BINARY) $(OPTICAL_TEST_BINARY) $(AUTOAIM_TEST_BINARY)

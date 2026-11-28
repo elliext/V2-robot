@@ -20,6 +20,7 @@ vex::aivision::object cup(int centerX, int width, int height, int bottom) {
   object.exists = true;
   object.className = "Cup";
   object.centerX = centerX;
+  object.originX = centerX - width / 2;
   object.width = width;
   object.height = height;
   object.originY = bottom - height;
@@ -55,6 +56,34 @@ void selectsNearestUprightCup() {
           "Empty input has no target");
   vex::aivision::object floorEdge = cup(100, 50, 100, 240);
   require(observeCup(&floorEdge, 1).bottomClipped, "Cup at the bottom edge is clipped");
+}
+
+void prefersCupHoldingPin() {
+  vex::aivision::object objects[4];
+  objects[0] = cup(60, 40, 80, 220);   // Nearest cup, empty.
+  objects[1] = cup(200, 40, 80, 150);  // Farther cup holding a pin.
+  objects[2] = cup(200, 30, 40, 100);  // Pin sticking out of cup 1.
+  objects[2].className = "RedYellowPin";
+  objects[3] = cup(260, 40, 80, 230);  // Even nearer cup, also empty.
+  Observation observation = observeCup(objects, 4);
+  require(observation.visible && observation.centerX == 200,
+          "A cup holding a pin beats a nearer empty cup");
+
+  objects[2] = cup(120, 30, 40, 100);  // Pin between the cups, in neither.
+  objects[2].className = "RedYellowPin";
+  observation = observeCup(objects, 4);
+  require(observation.centerX == 260, "A pin outside every cup changes nothing");
+
+  objects[2].exists = false;
+  observation = observeCup(objects, 4);
+  require(observation.centerX == 260, "With no pin the nearest cup is chosen");
+
+  // Any pin class counts, not just the one used in testing.
+  objects[2] = cup(200, 30, 40, 100);
+  objects[2].className = "BlueOrangePin";
+  require(observeCup(objects, 4).centerX == 200, "Any class ending in Pin counts as a pin");
+  objects[2].className = "Pinwheel";
+  require(observeCup(objects, 4).centerX == 260, "A class that only contains Pin is not a pin");
 }
 
 void selectsLargestGoalTag() {
@@ -158,11 +187,14 @@ void approachStopsWhenTargetLost() {
 void aimRidesThroughDropouts() {
   AutoAim assist;
   const AssistOutput first = assist.update(AimTarget::Cup, false, seen(260, 60), 0);
+  require(first.turn > 0, "Target on the right turns clockwise");
   const AssistOutput dropped = assist.update(AimTarget::Cup, false, Observation(), 40);
-  require(dropped.target.visible && dropped.turn == first.turn,
-          "Aim holds its last command through a short dropout");
-  const AssistOutput gone = assist.update(AimTarget::Cup, false, Observation(), 300);
-  require(!gone.target.visible && gone.turn == 0, "Aim stops turning once the hold expires");
+  require(dropped.target.visible && dropped.turn == 0,
+          "A dropout keeps the target shown but stops turning");
+  const AssistOutput back = assist.update(AimTarget::Cup, false, seen(260, 60), 60);
+  require(back.turn > 0, "Turning resumes when the target reappears");
+  const AssistOutput gone = assist.update(AimTarget::Cup, false, Observation(), 400);
+  require(!gone.target.visible && gone.turn == 0, "Aim shows no target once the hold expires");
 }
 
 void approachIsCancelledAndTimesOut() {
@@ -187,6 +219,44 @@ void stickCancelDoesNotAbortAiming() {
   require(output.active && output.turn > 0, "Held button keeps aiming despite stick input");
 }
 
+void searchSweepsSlightlyAndStopsOnSighting() {
+  AutoAim assist;
+  AssistOutput output = assist.update(AimTarget::Cup, false, Observation(), 0);
+  require(output.active && output.turn == 0 && !output.searching, "Search waits before starting");
+  double net = 0;
+  double maxTurn = 0;
+  bool sawLeft = false, sawRight = false, sawPause = false;
+  for (int t = 20; t <= 3000; t += 20) {
+    output = assist.update(AimTarget::Cup, false, Observation(), t);
+    net += output.turn;
+    maxTurn = output.turn > maxTurn ? output.turn : (-output.turn > maxTurn ? -output.turn : maxTurn);
+    sawRight = sawRight || output.turn > 0;
+    sawLeft = sawLeft || output.turn < 0;
+    sawPause = sawPause || (t > 500 && output.searching && output.turn == 0);
+  }
+  require(output.searching, "Search continues while nothing is seen");
+  require(sawLeft && sawRight, "Search sweeps both ways");
+  require(sawPause, "Search pauses between pulses so the sensor sees a steady frame");
+  require(maxTurn <= 25, "Search turns gently");
+  require(net > -25 * 50 && net < 25 * 50, "Search stays near the starting heading");
+
+  output = assist.update(AimTarget::Cup, false, seen(160, 60), 3020);
+  require(!output.searching && output.turn == 0, "Search stops the moment a target is seen");
+}
+
+void searchStartsTowardLastSeenSide() {
+  AutoAim assist;
+  assist.update(AimTarget::Cup, false, seen(20, 60), 0);
+  AssistOutput output;
+  for (int t = 20; t < 600; t += 20) {
+    output = assist.update(AimTarget::Cup, false, Observation(), t);
+    if (output.turn != 0) {
+      break;
+    }
+  }
+  require(output.turn < 0, "Search begins toward the side the target was last seen");
+}
+
 void newPressRestartsWithNewTarget() {
   AutoAim assist;
   assist.update(AimTarget::Cup, false, seen(160, 60), 0);
@@ -201,6 +271,7 @@ void newPressRestartsWithNewTarget() {
 int main() {
   try {
     selectsNearestUprightCup();
+    prefersCupHoldingPin();
     selectsLargestGoalTag();
     aimTurnsTowardTargetThenLocks();
     aimReportsMissingTarget();
@@ -212,6 +283,8 @@ int main() {
     approachIsCancelledAndTimesOut();
     stickCancelDoesNotAbortAiming();
     newPressRestartsWithNewTarget();
+    searchSweepsSlightlyAndStopsOnSighting();
+    searchStartsTowardLastSeenSide();
   } catch (const std::exception& error) {
     std::cerr << "FAIL: " << error.what() << "\n";
     return 1;
