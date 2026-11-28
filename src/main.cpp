@@ -19,9 +19,6 @@
 #include "Toggle.h"
 #include "AIVision.h"
 #include "AssistDrive.h"
-#if defined(AI_VISION_TEST) || defined(AUTON_SELECTION_TEST) || defined(AIM_TEST)
-#error Hardware-test startup modes were removed. Build without hardware-test defines.
-#endif
 using namespace vex;
 
 // A global instance of competition                          

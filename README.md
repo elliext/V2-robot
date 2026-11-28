@@ -6,11 +6,10 @@ Competition (V5RC)**.
 This private repository contains the C++ VEX V5 project for the team's second
 robot.
 
-**Hardware-test startup modes have been removed.** The normal program performs
-competition startup and can power motors after pre-auton confirmation.
-`AI_VISION_TEST`, `AUTON_SELECTION_TEST`, and `AIM_TEST` firmware builds are now
-rejected; hardware-test download commands described below are historical and
-must not be used. Motor-free host tests remain available through `make test`.
+**`main` is production-only.** Test files, test build targets, and hardware-test
+modes belong on the remote [test branch](https://github.com/elliext/V2-robot/tree/test).
+The normal program can power motors after pre-auton confirmation. Hardware-test
+defines are rejected on `main`; run host tests on `test`, not on `main`.
 
 ## V2 Robot Hardware
 
@@ -75,7 +74,7 @@ or recalibrate while tracking; reinitialize at a known pose afterward. Update
 often enough that heading changes by less than 180 degrees between samples.
 Drive-wheel slip and sideways pushes still cause unmeasured position error.
 
-`make test` includes motor-free host tests for distance conversion, forward and
+On the `test` branch, `make test` includes motor-free host tests for distance conversion, forward and
 reverse movement, starting poses, turns/arcs, heading wraparound, and faults.
 
 ### Claw
@@ -149,16 +148,8 @@ and calibration.
 A one-off download to slot 4 can be used without changing the normal slot 1
 project setting.
 
-For an isolated motor-free selection test, build with
-`DEFINES="-DVexV5 -DAUTON_SELECTION_TEST"` and a separate output directory,
-for example `make all BUILD=build/selection-test P=Selection-test
-DEFINES="-DVexV5 -DAUTON_SELECTION_TEST"` using the installed VEX SDK/toolchain.
-This test entry point refuses field-control/competition-switch connections,
-enables driver input, and runs the selector without registering competition
-callbacks or running normal pre-autonomous motor initialization. **A** only
-confirms selection; it does not start the claw. Restart the test program to
-select again. Download this separate binary to slot 4; normal builds omit the
-flag and retain the competition program.
+Any isolated motor-free selection program must be implemented on `test`, with a
+separate output directory and an explicitly approved spare Brain slot.
 
 **Right Wing** always calls `rightWing()` and **Left Wing** always calls
 `leftWing()` in [src/autonomos.cpp](src/autonomos.cpp). Both wing paths call
@@ -173,7 +164,7 @@ and drive 15 inches. These existing route commands are unchanged by the selector
 update. The separate scoring helpers remain available but are not currently
 called by either wing. Verify both routes on the physical field before competition.
 
-`make test` also runs [tests/AutonTest.cpp](tests/AutonTest.cpp) against the
+On `test`, `make test` also runs [AutonTest.cpp](https://github.com/elliext/V2-robot/blob/test/tests/AutonTest.cpp) against the
 actual selector and autonomous code with fake controller/touchscreen inputs and motors.
 It checks both alliances, ignored shoulder buttons, Right Wing / Left Wing
 mapping, direct arrow selection, held/simultaneous-button behavior,
@@ -301,47 +292,11 @@ This feature issues no motor commands and changes no controller bindings.
 The existing competition program still has motor initialization and controls;
 calibration does not make that program safe for unsupported hardware testing.
 
-For a **motor-free vision-only hardware test**, build with
-`DEFINES="-DVexV5 -DAI_VISION_TEST"` and a separate output directory:
-
-```sh
-make all BUILD=build/vision-test P=Vision-test DEFINES="-DVexV5 -DAI_VISION_TEST" PRINTF_FLOAT=1
-```
-
-Use the installed VEX SDK/toolchain paths as needed. This entry point refuses
-field-control/competition-switch connections and only updates the AI Vision
-display; it skips controller selection, optical readouts, motor initialization,
-and competition callbacks. It does not enable driver mode or test controller
-input. Download to an explicitly approved spare slot (for example slot 4),
-leaving normal slot 1 settings unchanged. Do not combine `AI_VISION_TEST` and
-`AUTON_SELECTION_TEST`. Builds without either flag retain normal behavior.
-The vision-only test uses screen double buffering to present complete frames
-without clear/redraw flashing. Frame-presentation failures and recovery are
-reported in console output.
-Its snapshot/display interval is 1000 ms so changing detections are easier to
-read during calibration; normal builds retain the 250 ms interval.
-Normal VS Code build/download uses `build/` and slot 1 with neither hardware
-test flag enabled. Host test sources are not part of the robot build.
-The makefile rejects hardware-test flags in the normal `build/` directory;
-test programs must use a separate output directory and an explicitly approved
-spare slot. A build-mode stamp forces robot objects to rebuild when switching
-between normal and hardware-test modes, preventing stale test objects from
-entering a normal binary. The controller receives no separate robot program:
-the program runs on the Brain.
-The vision-only test also auto-calibrates once per program start from exactly
-one valid `Cup`, ignoring pin detections for calibration. Hold the cup upright
-and fully visible at the reference distance before starting the program.
-Five consecutive snapshots must have the same long-axis orientation and a
-maximum pixel length no more than 10% above the minimum; their mean length sets
-the scale. Missing, duplicate, invalid, or clipped cups and snapshot failures
-reset progress. After success, moving the cup does not recalibrate. A successful
-manual calibration also stops automatic calibration. Sensor disconnection
-clears the scale but does not rearm a completed automatic calibration; restart
-at the reference distance or calibrate manually.
-The current 32-inch reference was only roughly measured, so automatic success
-is labeled `Auto Cal OK; rough 32in reference`. Stability does not prove the
-reference distance, correct pose, or measurement accuracy. Normal competition
-builds remain manual-calibration only.
+Normal VS Code build/download uses `build/` and slot 1. Production vision refresh
+is 250 ms and calibration is manual. Motor-free vision programs and automatic
+calibration experiments must be developed on `test`, not added to `main`.
+Use a separate output directory and an explicitly approved spare Brain slot.
+The controller receives no separate robot program: the program runs on the Brain.
 
 #### Driver Aim and Approach Assist
 
@@ -377,35 +332,24 @@ and speeds at the top of [src/AutoAim.cpp](src/AutoAim.cpp) are **untuned
 estimates**. Tune them on the robot; each arrival prints the target size.
 Only aiming and approaching are included; picking up and dropping stay manual.
 
-For a **motor-free aim test**, build with a separate output directory:
-
-```sh
-make all BUILD=build/aim-test P=Aim-test DEFINES="-DVexV5 -DAIM_TEST"
-```
-
-This build refuses field-control connections, runs no competition callbacks, and
-never commands a motor. The Brain screen shows the held button, assist state, the
-target's x position, size and pixel error, the turn/forward the assist *would*
-command, the last event, the last-seen/peak size next to the stop size, and the
-raw cup detections (class, width x height, accepted or rejected); the controller
-still rumbles. Hold Up or Down to
-check the aim and lock. To check the approach, release the button and move the
-target toward the sensor by hand: forward output shrinks as the size grows and
-`Arrived` appears at the stop size. Do not combine it with `AI_VISION_TEST` or
-`AUTON_SELECTION_TEST`.
+Motor-free aim diagnostics must be developed on `test`, with a separate output
+directory and an approved spare Brain slot. They are not part of `main`.
 
 #### AI Vision Unit Tests
 
-Run the host-side tests without connecting any VEX hardware:
+Run the host-side tests on the remote `test` branch without connecting any VEX
+hardware, preferably using a separate worktree:
 
 ```sh
+git worktree add ../V2-robot-test test
+cd ../V2-robot-test
 make test
 ```
 
 This requires a host C++11 compiler (`c++` by default; override with
 `HOST_CXX=clang++` if needed), but no VEX SDK or additional test dependencies.
 The tests compile the actual [AI Vision display code](src/AIVision.cpp) against
-small sensor, timer, and screen fakes in [tests/fakes/vex.h](tests/fakes/vex.h).
+small sensor, timer, and screen fakes on [test](https://github.com/elliext/V2-robot/blob/test/tests/fakes/vex.h).
 Each case runs in a separate process so the display's static state is isolated.
 
 The 28 cases cover missing hardware, model and tag configuration, reported object
@@ -422,8 +366,7 @@ boundary, plus three auto-calibration cases covering the five-sample threshold,
 pin exclusion, averaging, instability/progress resets, and one-shot behavior.
 The test binary is stored under `build/tests`, separately from the robot build.
 
-These AI Vision tests replace the earlier vision diagnostic build mode, separate
-from the selection-only hardware test described above. They do not download
+These AI Vision tests live on `test`, not `main`. They do not download
 or run anything on the Brain, test motor movement, validate a real AI model, or
 prove physical recognition. The earlier Cup and RedYellowPin results above are
 hardware observations; real-world recognition still requires a hardware test.
@@ -493,7 +436,7 @@ Optical lines are written only when their displayed text changes, without
 clearing first. Disconnected sensors still show `sensor missing`, but the same
 message is not repeatedly cleared and rewritten.
 
-`make test` includes [tests/OpticalDisplayTest.cpp](tests/OpticalDisplayTest.cpp)
+On `test`, `make test` includes [OpticalDisplayTest.cpp](https://github.com/elliext/V2-robot/blob/test/tests/OpticalDisplayTest.cpp)
 to check change-only rendering, the 100 ms refresh boundary, reconnection,
 preservation of selection line 3, and the absence of display-driven motor commands.
 Selector tests also cover release-before-confirm and batched, non-clearing redraws.
@@ -658,7 +601,7 @@ calls still omit the timeout; supplying `4500` as the fourth argument is necessa
 to apply a 4.5-second limit. A larger timeout does not itself improve accuracy.
 These changes address premature completion and windup, not physical drivetrain
 variation: repeated hardware tests and gain tuning are still required.
-`make test` runs [tests/TurnPIDTest.cpp](tests/TurnPIDTest.cpp) against the actual
+On `test`, `make test` runs [TurnPIDTest.cpp](https://github.com/elliext/V2-robot/blob/test/tests/TurnPIDTest.cpp) against the actual
 PID code with scripted inertial readings. It covers settling, resumed correction
 after overshoot, both turn directions, deadlines, output limits, and sensor/input
 faults. These tests verify controller logic, not physical turn accuracy.

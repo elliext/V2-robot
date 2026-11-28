@@ -6,11 +6,7 @@
 using namespace vex;
 
 namespace {
-#if defined(AI_VISION_TEST)
-constexpr int kRefreshIntervalMs = 1000;
-#else
 constexpr int kRefreshIntervalMs = 250;
-#endif
 constexpr int kSnapshotObjects = 24;
 constexpr int kDisplayObjects = 3;
 constexpr int kDisplayTags = 4;
@@ -53,38 +49,6 @@ bool matchesTarget(const aivision::object& object) {
           strcmp(object.className, kTargetClassName) == 0);
 }
 
-#if defined(AI_VISION_TEST)
-struct autoCalibration {
-  bool finished = false;
-  int samples = 0;
-  int minimum = 0;
-  int maximum = 0;
-  int total = 0;
-  bool horizontal = false;
-
-  void reset() {
-    samples = 0;
-    total = 0;
-  }
-
-  void sample(const aivision::object& object) {
-    const int length = apparentLength(object);
-    const bool currentHorizontal = object.width > object.height;
-    const int newMinimum = samples == 0 || length < minimum ? length : minimum;
-    const int newMaximum = samples == 0 || length > maximum ? length : maximum;
-    if (samples > 0 && (currentHorizontal != horizontal ||
-                       newMaximum > newMinimum * 1.10)) {
-      reset();
-    }
-    minimum = samples == 0 || length < minimum ? length : minimum;
-    maximum = samples == 0 || length > maximum ? length : maximum;
-    horizontal = currentHorizontal;
-    total += length;
-    ++samples;
-  }
-};
-#endif
-
 vex::mutex& sensorMutex() {
   static vex::mutex mutex;
   return mutex;
@@ -104,9 +68,6 @@ void updateAIVisionDisplay() {
   static bool calibrationRequested = false;
   static double focalLengthPixels = 0;
   static const char* calibrationStatus = nullptr;
-#if defined(AI_VISION_TEST)
-  static autoCalibration automatic;
-#endif
   const bool touching = Brain.Screen.pressing();
   if (touching && !touchHeld &&
       Brain.Screen.xPosition() >= 300 && Brain.Screen.xPosition() < 470 &&
@@ -126,9 +87,6 @@ void updateAIVisionDisplay() {
     focalLengthPixels = 0;
     calibrationRequested = false;
     calibrationStatus = nullptr;
-#if defined(AI_VISION_TEST)
-    automatic.reset();
-#endif
     if (!missingReported) {
       printf("AI Vision: sensor missing on Smart Port 6.\n");
       missingReported = true;
@@ -152,9 +110,6 @@ void updateAIVisionDisplay() {
   Brain.Screen.clearScreen();
   if (count < 0 || count > kSnapshotObjects) {
     calibrationRequested = false;
-#if defined(AI_VISION_TEST)
-    automatic.reset();
-#endif
     if (!snapshotFault) {
       printf("AI Vision: invalid snapshot object count %d.\n", count);
     }
@@ -170,10 +125,6 @@ void updateAIVisionDisplay() {
   int matches = 0;
   int calibrationCandidates = 0;
   int calibrationIndex = -1;
-#if defined(AI_VISION_TEST)
-  int cupCandidates = 0;
-  int cupIndex = -1;
-#endif
   for (int i = 0; i < count; ++i) {
     if (matchesTarget(AIVision.objects[i])) {
       ++matches;
@@ -181,38 +132,8 @@ void updateAIVisionDisplay() {
         ++calibrationCandidates;
         calibrationIndex = i;
       }
-#if defined(AI_VISION_TEST)
-      if (strcmp(AIVision.objects[i].className, "Cup") == 0) {
-        ++cupCandidates;
-        cupIndex = i;
-      }
-#endif
     }
   }
-
-#if defined(AI_VISION_TEST)
-  if (!automatic.finished && !calibrationRequested) {
-    if (cupCandidates != 1) {
-      automatic.reset();
-      calibrationStatus = "Auto Cal waiting: need exactly ONE Cup";
-    } else if (sizeError(AIVision.objects[cupIndex]) != nullptr) {
-      automatic.reset();
-      calibrationStatus = "Auto Cal waiting: invalid or clipped Cup";
-    } else {
-      automatic.sample(AIVision.objects[cupIndex]);
-      calibrationStatus = nullptr;
-      if (automatic.samples == 5) {
-        const double meanPixels = automatic.total / 5.0;
-        focalLengthPixels = meanPixels * kCalibrationDistanceMm /
-                            objectLengthMm(AIVision.objects[cupIndex]);
-        automatic.finished = true;
-        calibrationStatus = "Auto Cal OK; rough 32in reference";
-        printf("AI Vision: auto-calibrated Cup assuming %.1f mm; mean %.2f px, focal %.2f px. Reference distance is approximate.\n",
-               kCalibrationDistanceMm, meanPixels, focalLengthPixels);
-      }
-    }
-  }
-#endif
 
   if (calibrationRequested) {
     calibrationRequested = false;
@@ -230,10 +151,6 @@ void updateAIVisionDisplay() {
         focalLengthPixels = apparentLength(object) * kCalibrationDistanceMm /
                             objectLengthMm(object);
         calibrationStatus = "Cal OK; approximate camera-axis range";
-#if defined(AI_VISION_TEST)
-        automatic.finished = true;
-        automatic.reset();
-#endif
         printf("AI Vision: calibrated %s at %.1f mm, %d px; focal length %.2f px.\n",
                object.className, kCalibrationDistanceMm, apparentLength(object),
                focalLengthPixels);
@@ -249,16 +166,8 @@ void updateAIVisionDisplay() {
   if (calibrationStatus != nullptr) {
     Brain.Screen.printAt(10, 72, true, "%s", calibrationStatus);
   } else {
-#if defined(AI_VISION_TEST)
-    if (!automatic.finished) {
-      Brain.Screen.printAt(10, 72, true, "Auto Cal %.1fmm: Cup stable %d/5",
-                           kCalibrationDistanceMm, automatic.samples);
-    } else
-#endif
-    {
-      Brain.Screen.printAt(10, 72, true, "ONE upright object at %.1fmm; tap Cal",
-                           kCalibrationDistanceMm);
-    }
+    Brain.Screen.printAt(10, 72, true, "ONE upright object at %.1fmm; tap Cal",
+                         kCalibrationDistanceMm);
   }
   int displayed = 0;
   for (int i = 0; i < count && displayed < kDisplayObjects; ++i) {
